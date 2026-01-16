@@ -7,6 +7,7 @@ interface Metadata {
   roles: string[];
   databases: string[];
   profiles: string[];
+  tables: Map<string, string[]>;
 }
 
 const useMetadata = (isOpen: boolean): Metadata => {
@@ -15,6 +16,7 @@ const useMetadata = (isOpen: boolean): Metadata => {
     roles: [],
     databases: [],
     profiles: [],
+    tables: new Map(),
   });
 
   useEffect(() => {
@@ -24,7 +26,7 @@ const useMetadata = (isOpen: boolean): Metadata => {
         const roles = !rolesResult.error && rolesResult.data
           ? rolesResult.data.map((row: any) => row.name)
           : [];
-        
+
         const dbResult = await runQuery("SHOW DATABASES");
         const databases = !dbResult.error && dbResult.data
           ? dbResult.data.map((row: any) => row.name)
@@ -35,7 +37,24 @@ const useMetadata = (isOpen: boolean): Metadata => {
           ? profilesResult.data.map((row: any) => row.name)
           : [];
 
-        setMetadata({ roles, databases, profiles });
+        // Fetch tables for each database
+        const tables = new Map<string, string[]>();
+        for (const db of databases) {
+          // Skip system databases for cleaner UI
+          if (db === "system" || db === "information_schema" || db === "INFORMATION_SCHEMA") {
+            continue;
+          }
+          try {
+            const tablesResult = await runQuery(`SHOW TABLES FROM ${db}`);
+            if (!tablesResult.error && tablesResult.data) {
+              tables.set(db, tablesResult.data.map((row: any) => row.name));
+            }
+          } catch {
+            // Skip databases we can't access
+          }
+        }
+
+        setMetadata({ roles, databases, profiles, tables });
       } catch (err) {
         console.error("Failed to fetch metadata:", err);
         toast.error("Failed to fetch metadata.");

@@ -25,6 +25,11 @@ import DatabaseRolesSection from "./DatabaseRolesSection";
 import PrivilegesSection from "./PrivilegesSection";
 import SettingsSection from "./SettingsSection";
 import useMetadata from "./hooks/useMetadata";
+import {
+  GrantedPermission,
+  findPermissionById,
+  formatScope,
+} from "./PrivilegesSection/permissions";
 
 interface CreateNewUserProps {
   onUserCreated: () => void;
@@ -54,6 +59,8 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
       },
       privileges: {
         isAdmin: false,
+        grants: [] as GrantedPermission[],
+        // Legacy fields for backward compatibility
         allowDDL: false,
         allowInsert: false,
         allowSelect: false,
@@ -176,13 +183,43 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
   };
 
   const buildGrantQueries = (username: string, data: any) => {
-    const queries = [];
+    const queries: string[] = [];
 
     if (data.privileges.isAdmin) {
       queries.push(`GRANT ALL ON *.* TO ${username} WITH GRANT OPTION`);
       return queries;
     }
 
+    // Use new hierarchical grants if available
+    const grants: GrantedPermission[] = data.privileges.grants || [];
+    if (grants.length > 0) {
+      // Group grants by scope for more efficient GRANT statements
+      const scopeGroups = new Map<string, string[]>();
+
+      for (const grant of grants) {
+        const permission = findPermissionById(grant.permissionId);
+        if (!permission) continue;
+
+        const scopeKey = formatScope(grant.scope);
+        if (!scopeGroups.has(scopeKey)) {
+          scopeGroups.set(scopeKey, []);
+        }
+        scopeGroups.get(scopeKey)!.push(permission.sqlPrivilege);
+      }
+
+      // Generate GRANT statements grouped by scope
+      for (const [scope, privileges] of scopeGroups) {
+        // Remove duplicates and sort for consistent output
+        const uniquePrivileges = [...new Set(privileges)].sort();
+        queries.push(
+          `GRANT ${uniquePrivileges.join(", ")} ON ${scope} TO ${username}`
+        );
+      }
+
+      return queries;
+    }
+
+    // Fallback to legacy flat permissions for backward compatibility
     for (const db of data.grantDatabases) {
       const privileges = [];
 
@@ -274,7 +311,11 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
             />
 
             {/* Privileges Section */}
-            <PrivilegesSection form={form} />
+            <PrivilegesSection
+              form={form}
+              databases={metadata.databases}
+              tables={metadata.tables}
+            />
 
             {/* Settings Section */}
             <SettingsSection form={form} profiles={metadata.profiles} />

@@ -223,7 +223,7 @@ export default function ConnectionManager() {
                         </Badge>
                       ) : (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => handleConnect(conn)}
                           disabled={connectingId !== null}
@@ -231,7 +231,10 @@ export default function ConnectionManager() {
                           {connectingId === conn.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            "Connect"
+                            <>
+                              <Plug className="h-4 w-4 mr-1" />
+                              Connect
+                            </>
                           )}
                         </Button>
                       )}

@@ -23,6 +23,12 @@ export interface DatabaseInfo {
   children: { name: string; type: string }[];
 }
 
+export interface MultiQueryResult {
+  queryIndex: number;
+  queryText: string;
+  result: QueryResult;
+}
+
 interface Tab {
   id: string;
   title: string;
@@ -32,6 +38,8 @@ interface Tab {
   isLoading?: boolean;
   isSaved?: boolean;
   result?: any;
+  results?: MultiQueryResult[];
+  activeResultIndex?: number;
   isDirty?: boolean;
 }
 
@@ -113,6 +121,7 @@ export interface AppState
   clearCredentials: () => Promise<void>;
   checkServerStatus: () => Promise<void>;
   runQuery: (query: string, tabId?: string) => Promise<QueryResult>;
+  runAllQueries: (queries: string[], tabId: string) => Promise<MultiQueryResult[]>;
   initializeApp: () => Promise<void>;
   setCredentialSource: (source: "env" | "app") => void;
   updateConfiguration: (clickhouseSettings: ClickHouseSettings) => void;

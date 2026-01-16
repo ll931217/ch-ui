@@ -18,6 +18,7 @@ import { useTheme } from "@/components/common/theme-provider";
 import DownloadDialog from "@/components/common/DownloadDialog";
 import EmptyQueryResult from "./EmptyQueryResult";
 import StatisticsDisplay from "./StatisticsDisplay";
+import MultiResultTabs from "./MultiResultTabs";
 
 // Store
 import useAppStore from "@/store";
@@ -55,7 +56,7 @@ const CustomCellRenderer = (props: ICellRendererParams) => {
  * query results, metadata, and statistics tabs on the bottom.
  */
 const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
-  const { getTabById, runQuery, fetchDatabaseInfo } = useAppStore();
+  const { getTabById, runQuery, runAllQueries, fetchDatabaseInfo, updateTab } = useAppStore();
   const tab = getTabById(tabId);
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("results");
@@ -86,10 +87,13 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     );
   };
 
-  // Handle query execution
+  // Handle single query execution
   const handleRunQuery = useCallback(
     async (query: string) => {
       try {
+        // Clear multi-query results when running single query
+        await updateTab(tabId, { results: undefined, activeResultIndex: undefined });
+
         const shouldRefresh = isSchemaModifyingQuery(query);
         const result = await runQuery(query, tabId);
 
@@ -104,7 +108,38 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
         );
       }
     },
-    [runQuery, tabId, fetchDatabaseInfo]
+    [runQuery, tabId, fetchDatabaseInfo, updateTab]
+  );
+
+  // Handle multi-query execution
+  const handleRunAllQueries = useCallback(
+    async (queries: string[]) => {
+      try {
+        const hasSchemaChange = queries.some(isSchemaModifyingQuery);
+        await runAllQueries(queries, tabId);
+
+        if (hasSchemaChange) {
+          await fetchDatabaseInfo();
+          toast.success("Data Explorer refreshed due to schema change");
+        }
+
+        toast.success(`Executed ${queries.length} queries`);
+      } catch (error) {
+        console.error("Error running queries:", error);
+        toast.error(
+          "Failed to execute queries. Please check the console for more details."
+        );
+      }
+    },
+    [runAllQueries, tabId, fetchDatabaseInfo]
+  );
+
+  // Handle result index change for multi-query results
+  const handleResultIndexChange = useCallback(
+    (index: number) => {
+      updateTab(tabId, { activeResultIndex: index });
+    },
+    [tabId, updateTab]
   );
 
   // Process result data into grid-compatible format
@@ -256,6 +291,19 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const renderResults = () => {
     if (tab?.isLoading) return renderLoading();
     if (tab?.error) return renderError(tab.error);
+
+    // Check for multi-query results first
+    if (tab?.results && tab.results.length > 0) {
+      return (
+        <MultiResultTabs
+          results={tab.results}
+          activeResultIndex={tab.activeResultIndex ?? 0}
+          onResultIndexChange={handleResultIndexChange}
+        />
+      );
+    }
+
+    // Single query result
     if (!tab?.result) return renderEmpty();
     if (tab.result.error) return renderError(tab.result.error);
 
@@ -269,7 +317,11 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     <div className="h-full">
       <ResizablePanelGroup direction="vertical">
         <ResizablePanel defaultSize={50} minSize={25}>
-          <SQLEditor tabId={tabId} onRunQuery={handleRunQuery} />
+          <SQLEditor
+            tabId={tabId}
+            onRunQuery={handleRunQuery}
+            onRunAllQueries={handleRunAllQueries}
+          />
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={50} minSize={25}>

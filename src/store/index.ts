@@ -8,6 +8,7 @@ import {
   ClickHouseSettings,
   QueryResult,
   SavedQuery,
+  MultiQueryResult,
 } from "@/types/common";
 import { createClient } from "@clickhouse/client-web";
 import { isCreateOrInsert } from "@/helpers/sqlUtils";
@@ -438,6 +439,94 @@ const useAppStore = create<AppState>()(
               }));
             }
           }
+        },
+
+        /**
+         * Runs multiple SQL queries sequentially and stores results in the tab.
+         * Each query's result is stored in the results array for tabbed display.
+         */
+        runAllQueries: async (queries: string[], tabId: string) => {
+          const { clickHouseClient, updateTab } = get();
+          if (!clickHouseClient) {
+            throw new Error("ClickHouse client is not initialized");
+          }
+
+          // Set loading state
+          set((state) => ({
+            tabs: state.tabs.map((tab) =>
+              tab.id === tabId
+                ? { ...tab, isLoading: true, error: null, results: [], result: null }
+                : tab
+            ),
+          }));
+
+          const results: MultiQueryResult[] = [];
+
+          for (let i = 0; i < queries.length; i++) {
+            const query = queries[i];
+            try {
+              const trimmedQuery = query.trim();
+              if (!trimmedQuery) continue;
+
+              let queryResult: QueryResult;
+
+              if (isCreateOrInsert(trimmedQuery)) {
+                await clickHouseClient.command({ query: trimmedQuery });
+                queryResult = {
+                  meta: [],
+                  data: [],
+                  statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
+                  rows: 0,
+                  error: null,
+                };
+              } else {
+                const result = await clickHouseClient.query({
+                  query: trimmedQuery,
+                });
+                const jsonResult = (await result.json()) as any;
+                queryResult = {
+                  meta: jsonResult.meta || [],
+                  data: jsonResult.data || [],
+                  statistics: jsonResult.statistics || {
+                    elapsed: 0,
+                    rows_read: 0,
+                    bytes_read: 0,
+                  },
+                  rows: jsonResult.rows || 0,
+                  error: null,
+                };
+              }
+
+              results.push({
+                queryIndex: i,
+                queryText: trimmedQuery,
+                result: queryResult,
+              });
+            } catch (error: any) {
+              results.push({
+                queryIndex: i,
+                queryText: query.trim(),
+                result: {
+                  meta: [],
+                  data: [],
+                  statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
+                  rows: 0,
+                  error: error.message,
+                },
+              });
+            }
+          }
+
+          // Update tab with all results
+          await updateTab(tabId, {
+            results,
+            activeResultIndex: 0,
+            isLoading: false,
+            error: null,
+            result: null, // Clear single result when using multi-query mode
+          });
+
+          return results;
         },
 
         /**

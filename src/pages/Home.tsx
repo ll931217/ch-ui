@@ -21,13 +21,18 @@ function HomePage() {
       <CreateDatabase />
       <UploadFromFile />
       <ResizablePanelGroup direction="horizontal">
-        <ResizablePanel className="overflow-scroll" defaultSize={25}>
+        <ResizablePanel
+          className="overflow-scroll"
+          defaultSize={20}
+          collapsible
+          collapsedSize={5}
+        >
           <DatabaseExplorer />
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel
           className="overflow-scroll"
-          defaultSize={75}
+          defaultSize={80}
           minSize={40}
         >
           <WorkspaceTabs />

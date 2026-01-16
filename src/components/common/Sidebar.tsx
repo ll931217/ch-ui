@@ -61,6 +61,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { withBasePath } from "@/lib/basePath";
 import useAppStore from "@/store";
+import ConnectionSwitcher from "@/features/connections/components/ConnectionSwitcher";
 
 const Logo = withBasePath("logo.png");
 import { Badge } from "@/components/ui/badge";
@@ -126,9 +127,8 @@ const Sidebar = () => {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  if (!isServerAvailable) {
-    return null;
-  }
+  // Show sidebar for all users (guests and authenticated)
+  // Only show navigation items when server is available
 
   const navItems = [
     { to: "/", label: "Home", icon: SquareTerminal, isNewWindow: false },
@@ -177,9 +177,16 @@ const Sidebar = () => {
         )}
       </div>
 
+      {/* Connection Switcher */}
+      {isExpanded && (
+        <div className="px-2 py-1">
+          <ConnectionSwitcher />
+        </div>
+      )}
+
       <ScrollArea className="flex-grow">
         <nav className="space-y-1 p-2">
-          {navItems.map((item) => (
+          {isServerAvailable && navItems.map((item) => (
             <Link
               key={item.to}
               to={item.to}
@@ -194,7 +201,7 @@ const Sidebar = () => {
               {isExpanded && <span>{item.label}</span>}
             </Link>
           ))}
-          {isAdmin && (
+          {isServerAvailable && isAdmin && (
             <Link
               to="/admin"
               className={`relative flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${

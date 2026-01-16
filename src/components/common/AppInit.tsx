@@ -27,9 +27,6 @@ const AppInitializer = ({ children }: { children: ReactNode }) => {
       text: "Checking if you are an admin...",
     },
     {
-      text: "Loading metrics...",
-    },
-    {
       text: "Loading settings...",
     },
   ];
@@ -41,51 +38,56 @@ const AppInitializer = ({ children }: { children: ReactNode }) => {
     setCredentialSource,
     checkIsAdmin,
   } = useAppStore();
+
   const [isLoading, setIsLoading] = useState(true);
   const [envChecked, setEnvChecked] = useState(false);
 
-  // Effect to set credentials from environment variables
+  // Effect to check credentials from environment variables
   useEffect(() => {
-    // Check if credentials are set from environment variables
-    const envUrl = window.env?.VITE_CLICKHOUSE_URL;
-    const envUser = window.env?.VITE_CLICKHOUSE_USER;
-    const envPass = window.env?.VITE_CLICKHOUSE_PASS;
-    const envDatabase = window.env?.VITE_CLICKHOUSE_DATABASE;
-    const envUseAdvanced = window.env?.VITE_CLICKHOUSE_USE_ADVANCED;
-    const envCustomPath = window.env?.VITE_CLICKHOUSE_CUSTOM_PATH;
-    const envRequestTimeout = window.env?.VITE_CLICKHOUSE_REQUEST_TIMEOUT;
+    const initEnv = () => {
+      // Check if credentials are set from environment variables
+      const envUrl = window.env?.VITE_CLICKHOUSE_URL;
+      const envUser = window.env?.VITE_CLICKHOUSE_USER;
+      const envPass = window.env?.VITE_CLICKHOUSE_PASS;
+      const envDatabase = window.env?.VITE_CLICKHOUSE_DATABASE;
+      const envUseAdvanced = window.env?.VITE_CLICKHOUSE_USE_ADVANCED;
+      const envCustomPath = window.env?.VITE_CLICKHOUSE_CUSTOM_PATH;
+      const envRequestTimeout = window.env?.VITE_CLICKHOUSE_REQUEST_TIMEOUT;
 
-    console.log("AppInit: Checking environment variables...");
-    console.log("AppInit: envUrl:", envUrl ? "SET" : "NOT SET");
-    console.log("AppInit: envUser:", envUser ? "SET" : "NOT SET");
-    console.log("AppInit: envDatabase:", envDatabase ? "SET" : "NOT SET");
+      console.log("AppInit: Checking environment variables...");
+      console.log("AppInit: envUrl:", envUrl ? "SET" : "NOT SET");
+      console.log("AppInit: envUser:", envUser ? "SET" : "NOT SET");
+      console.log("AppInit: envDatabase:", envDatabase ? "SET" : "NOT SET");
 
-    if (envUrl && envUser) {
-      console.log("AppInit: Setting credentials from environment variables");
-      setCredential({
-        url: envUrl,
-        username: envUser,
-        password: envPass || "",
-        database: envDatabase,
-        useAdvanced: envUseAdvanced || false,
-        customPath: envCustomPath || "",
-        requestTimeout: envRequestTimeout || 30000,
-      });
-      setCredentialSource("env");
-    }
+      if (envUrl && envUser) {
+        console.log("AppInit: Setting credentials from environment variables");
+        setCredential({
+          url: envUrl,
+          username: envUser,
+          password: envPass || "",
+          database: envDatabase,
+          useAdvanced: envUseAdvanced || false,
+          customPath: envCustomPath || "",
+          requestTimeout: envRequestTimeout || 30000,
+        });
+        setCredentialSource("env");
+      }
 
-    // Clear window.env after reading to reduce credential exposure
-    if (window.env) {
-      delete window.env;
-    }
+      // Clear window.env after reading to reduce credential exposure
+      if (window.env) {
+        delete window.env;
+      }
 
-    setEnvChecked(true);
+      setEnvChecked(true);
+    };
+
+    initEnv();
   }, [setCredential, setCredentialSource]);
 
   // Effect to initialize the application after env check
   useEffect(() => {
     if (!envChecked) return;
-    
+
     const init = async () => {
       try {
         await initializeApp();

@@ -6,55 +6,70 @@ import SettingsPage from "@/pages/Settings";
 import { ThemeProvider } from "@/components/common/theme-provider";
 import AppInitializer from "@/components/common/AppInit";
 import NotFound from "./pages/NotFound";
-import { PrivateRoute } from "@/components/common/privateRoute"; // Import PrivateRoute
 import Admin from "@/pages/Admin";
 import LogsPage from "@/pages/Logs";
 import { AdminRoute } from "@/features/admin/routes/adminRoute";
+
+function MainLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      {children}
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <Router basename={import.meta.env.BASE_URL}>
         <AppInitializer>
-          <div className="flex h-screen">
-            <Sidebar />
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <PrivateRoute>
-                    <HomePage />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/metrics"
-                element={
-                  <PrivateRoute>
-                    <MetricsPage />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/logs"
-                element={
-                  <PrivateRoute>
-                    <LogsPage />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/admin"
-                element={
+          <Routes>
+            {/* Main app routes with sidebar */}
+            <Route
+              path="/"
+              element={
+                <MainLayout>
+                  <HomePage />
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/metrics"
+              element={
+                <MainLayout>
+                  <MetricsPage />
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/logs"
+              element={
+                <MainLayout>
+                  <LogsPage />
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <MainLayout>
                   <AdminRoute>
                     <Admin />
                   </AdminRoute>
-                }
-              />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </div>
+                </MainLayout>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <MainLayout>
+                  <SettingsPage />
+                </MainLayout>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </AppInitializer>
       </Router>
     </ThemeProvider>

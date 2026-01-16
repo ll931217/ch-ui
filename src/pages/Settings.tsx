@@ -49,6 +49,7 @@ import { toast } from "sonner";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import useAppStore from "@/store";
 import { retryInitialization } from "@/features/workspace/editor/monacoConfig";
+import { ConnectionManager } from "@/features/connections/components";
 
 // Custom URL validator that accepts both standard URLs and IP addresses with ports
 const isValidClickHouseUrl = (url: string): boolean => {
@@ -322,6 +323,9 @@ export default function SettingsPage() {
                 </AlertDescription>
               </Alert>
             )}
+
+            {/* Saved Connections Manager */}
+            <ConnectionManager />
 
             {credentialSource !== "env" && (
               <Card className="shadow-lg border-muted">

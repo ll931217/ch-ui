@@ -9,31 +9,44 @@ import WorkspaceTabs from "@/features/workspace/components//WorkspaceTabs";
 import CreateTable from "@/features/explorer/components/CreateTable";
 import CreateDatabase from "@/features/explorer/components/CreateDatabase";
 import UploadFromFile from "@/features/explorer/components/UploadFile";
+import { useDefaultLayout } from "react-resizable-panels";
 
 function HomePage() {
   useEffect(() => {
     document.title = "CH-UI | Home - Workspace";
   }, []);
 
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    groupId: "unique-layout-id",
+    storage: localStorage,
+  });
+
   return (
     <div className="h-screen w-full overflow-auto">
       <CreateTable />
       <CreateDatabase />
       <UploadFromFile />
-      <ResizablePanelGroup direction="horizontal">
+      <ResizablePanelGroup
+        id="main-layout"
+        defaultLayout={defaultLayout}
+        onLayoutChanged={onLayoutChanged}
+        orientation="horizontal"
+      >
         <ResizablePanel
+          id="database-explorer"
           className="overflow-scroll"
-          defaultSize={20}
+          defaultSize="20%"
+          minSize={300}
           collapsible
-          collapsedSize={5}
         >
           <DatabaseExplorer />
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel
+          id="workspace-tabs"
           className="overflow-scroll"
-          defaultSize={80}
-          minSize={40}
+          defaultSize="80%"
+          minSize="40%"
         >
           <WorkspaceTabs />
         </ResizablePanel>

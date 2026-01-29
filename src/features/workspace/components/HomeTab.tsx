@@ -62,14 +62,20 @@ const HomeTab = () => {
   const { addTab, runQuery, credential, isServerAvailable } = useAppStore();
   const { activeConnectionId, connections } = useConnectionStore();
   const [recentItems, setRecentItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const activeConnection = connections.find(c => c.id === activeConnectionId);
+  const activeConnection = connections.find((c) => c.id === activeConnectionId);
 
   useEffect(() => {
+    if (!isServerAvailable || !credential?.username) {
+      setLoading(false);
+      setRecentItems([]);
+      setError(null);
+      return;
+    }
     getUsersRecentItems();
-  }, [credential?.username]);
+  }, [credential?.username, isServerAvailable]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -189,16 +195,20 @@ const HomeTab = () => {
         </TabsList>
 
         <TabsContent value="recent" className="space-y-4">
-          {loading ? (
+          {!isServerAvailable || !credential?.username ? (
+            <Card className="p-4 text-center text-muted-foreground">
+              No recently opened queries
+            </Card>
+          ) : loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
                 <Card key={i} className="space-y-2">
                   <CardHeader>
-                    <Skeleton className="h-4 w-[250px]" />
-                    <Skeleton className="h-4 w-[200px]" />
+                    <Skeleton className="h-4 w-62.5" />
+                    <Skeleton className="h-4 w-50" />
                   </CardHeader>
                   <CardFooter>
-                    <Skeleton className="h-4 w-[150px]" />
+                    <Skeleton className="h-4 w-37.5" />
                   </CardFooter>
                 </Card>
               ))}

@@ -1,9 +1,20 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { Loader2, FileX2 } from "lucide-react";
 import { AgGridReact } from "ag-grid-react";
-import { ColDef, AllCommunityModule, ICellRendererParams } from "ag-grid-community";
+import {
+  ColDef,
+  AllCommunityModule,
+  GridApi,
+  ColumnPinnedType,
+} from "ag-grid-community";
 import { themeBalham, colorSchemeDark } from "ag-grid-community";
+import {
+  createDefaultColDef,
+  createGridOptions,
+  PinnedColumnsState,
+} from "@/lib/agGrid";
+import AgGridHeaderContextMenu from "@/components/common/AgGridHeaderContextMenu";
 
 // Component imports
 import SQLEditor from "@/features/workspace/editor/SqlEditor";
@@ -22,6 +33,7 @@ import MultiResultTabs from "./MultiResultTabs";
 
 // Store
 import useAppStore from "@/store";
+import { useDefaultLayout } from "react-resizable-panels";
 
 // Types
 interface SqlTabProps {
@@ -32,23 +44,6 @@ interface IRow {
   [key: string]: any;
 }
 
-// Format complex values for display in the grid
-const formatCellValue = (value: any): string => {
-  if (value === null || value === undefined) {
-    return "<em>null</em>";
-  }
-  if (typeof value === 'object') {
-    return JSON.stringify(value, null, 2);
-  }
-  return String(value);
-};
-
-// Cell renderer that can handle HTML content
-const CustomCellRenderer = (props: ICellRendererParams) => {
-  const formattedValue = formatCellValue(props.value);
-  return <div dangerouslySetInnerHTML={{ __html: formattedValue }} />;
-};
-
 /**
  * SqlTab component that provides a SQL editor and result viewer
  *
@@ -56,7 +51,8 @@ const CustomCellRenderer = (props: ICellRendererParams) => {
  * query results, metadata, and statistics tabs on the bottom.
  */
 const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
-  const { getTabById, runQuery, runAllQueries, fetchDatabaseInfo, updateTab } = useAppStore();
+  const { getTabById, runQuery, runAllQueries, fetchDatabaseInfo, updateTab } =
+    useAppStore();
   const tab = getTabById(tabId);
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("results");
@@ -66,24 +62,92 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     theme === "light" ? themeBalham : themeBalham.withPart(colorSchemeDark);
 
   // AG Grid configuration
-  const defaultColDef: ColDef = {
-    flex: 1,
-    minWidth: 130,
-    sortable: true,
-    filter: true,
-    resizable: true,
-    filterParams: { buttons: ["reset", "apply"] },
-    cellRenderer: CustomCellRenderer,
-    autoHeight: true,
-  };
+  const defaultColDef = useMemo(() => createDefaultColDef(), []);
+  const gridRef = useRef<AgGridReact<IRow>>(null);
+  const metaGridRef = useRef<AgGridReact<any>>(null);
 
   const [columnDefs, setColumnDefs] = useState<ColDef<IRow>[]>([]);
   const [rowData, setRowData] = useState<IRow[]>([]);
+  const [pinnedColumnsState, setPinnedColumnsState] =
+    useState<PinnedColumnsState>({});
+  const [metaPinnedColumnsState, setMetaPinnedColumnsState] =
+    useState<PinnedColumnsState>({});
+
+  const gridOptions = useMemo(
+    () => createGridOptions(rowData.length),
+    [rowData.length],
+  );
+
+  // Column pinning and manipulation callbacks
+  const handlePinColumn = useCallback(
+    (colId: string, pinned: ColumnPinnedType) => {
+      setPinnedColumnsState((prev) => ({
+        ...prev,
+        [colId]: pinned,
+      }));
+
+      const gridApi = gridRef.current?.api;
+      if (gridApi) {
+        gridApi.applyColumnState({
+          state: [{ colId, pinned }],
+        });
+      }
+    },
+    [],
+  );
+
+  const handleAutoSizeColumn = useCallback((colId: string) => {
+    const gridApi = gridRef.current?.api;
+    if (gridApi) {
+      gridApi.autoSizeColumns([colId]);
+    }
+  }, []);
+
+  const handleResetColumns = useCallback(() => {
+    setPinnedColumnsState({});
+    const gridApi = gridRef.current?.api;
+    if (gridApi) {
+      gridApi.resetColumnState();
+    }
+  }, []);
+
+  // Metadata grid column handlers
+  const handleMetaPinColumn = useCallback(
+    (colId: string, pinned: ColumnPinnedType) => {
+      setMetaPinnedColumnsState((prev) => ({
+        ...prev,
+        [colId]: pinned,
+      }));
+
+      const gridApi = metaGridRef.current?.api;
+      if (gridApi) {
+        gridApi.applyColumnState({
+          state: [{ colId, pinned }],
+        });
+      }
+    },
+    [],
+  );
+
+  const handleMetaAutoSizeColumn = useCallback((colId: string) => {
+    const gridApi = metaGridRef.current?.api;
+    if (gridApi) {
+      gridApi.autoSizeColumns([colId]);
+    }
+  }, []);
+
+  const handleMetaResetColumns = useCallback(() => {
+    setMetaPinnedColumnsState({});
+    const gridApi = metaGridRef.current?.api;
+    if (gridApi) {
+      gridApi.resetColumnState();
+    }
+  }, []);
 
   // Detect schema-changing queries to refresh database explorer
   const isSchemaModifyingQuery = (query: string): boolean => {
     return /^\s*(CREATE|DROP|ALTER|TRUNCATE|RENAME|INSERT|UPDATE|DELETE)\s+/i.test(
-      query
+      query,
     );
   };
 
@@ -92,7 +156,10 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     async (query: string) => {
       try {
         // Clear multi-query results when running single query
-        await updateTab(tabId, { results: undefined, activeResultIndex: undefined });
+        await updateTab(tabId, {
+          results: undefined,
+          activeResultIndex: undefined,
+        });
 
         const shouldRefresh = isSchemaModifyingQuery(query);
         const result = await runQuery(query, tabId);
@@ -104,11 +171,11 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       } catch (error) {
         console.error("Error running query:", error);
         toast.error(
-          "Failed to execute query. Please check the console for more details."
+          "Failed to execute query. Please check the console for more details.",
         );
       }
     },
-    [runQuery, tabId, fetchDatabaseInfo, updateTab]
+    [runQuery, tabId, fetchDatabaseInfo, updateTab],
   );
 
   // Handle multi-query execution
@@ -127,11 +194,11 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       } catch (error) {
         console.error("Error running queries:", error);
         toast.error(
-          "Failed to execute queries. Please check the console for more details."
+          "Failed to execute queries. Please check the console for more details.",
         );
       }
     },
-    [runAllQueries, tabId, fetchDatabaseInfo]
+    [runAllQueries, tabId, fetchDatabaseInfo],
   );
 
   // Handle result index change for multi-query results
@@ -139,7 +206,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     (index: number) => {
       updateTab(tabId, { activeResultIndex: index });
     },
-    [tabId, updateTab]
+    [tabId, updateTab],
   );
 
   // Process result data into grid-compatible format
@@ -147,7 +214,14 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     if (tab?.result?.data?.length && tab?.result?.meta?.length) {
       const colDefs: ColDef<IRow>[] = tab.result.meta.map((col: any) => ({
         headerName: col.name,
+        field: col.name,
         valueGetter: (param: any) => param.data[col.name],
+        headerComponent: AgGridHeaderContextMenu,
+        headerComponentParams: {
+          onPinColumn: handlePinColumn,
+          onAutoSizeColumn: handleAutoSizeColumn,
+          onResetColumns: handleResetColumns,
+        },
       }));
 
       setRowData(tab.result.data);
@@ -156,7 +230,13 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       setColumnDefs([]);
       setRowData([]);
     }
-  }, [tab?.result?.data, tab?.result?.meta]);
+  }, [
+    tab?.result?.data,
+    tab?.result?.meta,
+    handlePinColumn,
+    handleAutoSizeColumn,
+    handleResetColumns,
+  ]);
 
   // UI rendering functions
   const renderLoading = () => (
@@ -197,16 +277,15 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       <div className="h-full flex flex-col">
         <div className="flex-1">
           <AgGridReact
+            ref={gridRef}
             rowData={rowData}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
             modules={[AllCommunityModule]}
             theme={gridTheme}
-            pagination={true}
-            paginationPageSize={100}
-            enableCellTextSelection={true}
-            animateRows={true}
+            rowHeight={32}
             suppressMovableColumns={false}
+            {...gridOptions}
           />
         </div>
       </div>
@@ -220,16 +299,40 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       <div className="h-full flex flex-col">
         <div className="flex-1">
           <AgGridReact
+            ref={metaGridRef}
             rowData={tab.result.meta}
             columnDefs={[
-              { headerName: "Column Name", field: "name", flex: 1 },
-              { headerName: "Data Type", field: "type", flex: 1 },
+              {
+                headerName: "Column Name",
+                field: "name",
+                flex: 1,
+                headerComponent: AgGridHeaderContextMenu,
+                headerComponentParams: {
+                  onPinColumn: handleMetaPinColumn,
+                  onAutoSizeColumn: handleMetaAutoSizeColumn,
+                  onResetColumns: handleMetaResetColumns,
+                },
+              },
+              {
+                headerName: "Data Type",
+                field: "type",
+                flex: 1,
+                headerComponent: AgGridHeaderContextMenu,
+                headerComponentParams: {
+                  onPinColumn: handleMetaPinColumn,
+                  onAutoSizeColumn: handleMetaAutoSizeColumn,
+                  onResetColumns: handleMetaResetColumns,
+                },
+              },
             ]}
             defaultColDef={defaultColDef}
             modules={[AllCommunityModule]}
             theme={gridTheme}
+            rowHeight={32}
             pagination={true}
+            paginationPageSize={100}
             enableCellTextSelection={true}
+            animateRows={false}
           />
         </div>
       </div>
@@ -313,18 +416,38 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   // Return null if tab doesn't exist
   if (!tab) return null;
 
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    groupId: "unique-layout-id",
+    storage: localStorage,
+  });
+
   return (
     <div className="h-full">
-      <ResizablePanelGroup direction="vertical">
-        <ResizablePanel defaultSize={50} minSize={25}>
+      <ResizablePanelGroup
+        id="sql-tab"
+        defaultLayout={defaultLayout}
+        onLayoutChanged={onLayoutChanged}
+        orientation="vertical"
+      >
+        <ResizablePanel
+          id="sql-editor"
+          defaultSize={300}
+          collapsible
+          collapsedSize={200}
+        >
           <SQLEditor
             tabId={tabId}
             onRunQuery={handleRunQuery}
             onRunAllQueries={handleRunAllQueries}
           />
         </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={50} minSize={25}>
+        <ResizableHandle className="w-full h-1" withHandle />
+        <ResizablePanel
+          id="sql-results"
+          minSize={100}
+          collapsible
+          collapsedSize={20}
+        >
           {renderResults()}
         </ResizablePanel>
       </ResizablePanelGroup>

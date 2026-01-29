@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import { CheckCircle, XCircle } from "lucide-react";
 import { AgGridReact } from "ag-grid-react";
-import { ColDef, AllCommunityModule, ICellRendererParams } from "ag-grid-community";
+import { ColDef, AllCommunityModule, ColumnPinnedType } from "ag-grid-community";
 import { themeBalham, colorSchemeDark } from "ag-grid-community";
+import { createDefaultColDef, createGridOptions, PinnedColumnsState } from "@/lib/agGrid";
+import AgGridHeaderContextMenu from "@/components/common/AgGridHeaderContextMenu";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -21,21 +23,6 @@ interface MultiResultTabsProps {
 interface IRow {
   [key: string]: any;
 }
-
-const formatCellValue = (value: any): string => {
-  if (value === null || value === undefined) {
-    return "null";
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value, null, 2);
-  }
-  return String(value);
-};
-
-const CustomCellRenderer = (props: ICellRendererParams) => {
-  const formattedValue = formatCellValue(props.value);
-  return <span className="whitespace-pre-wrap">{formattedValue}</span>;
-};
 
 const getQueryLabel = (queryText: string, index: number): string => {
   const firstLine = queryText.split("\n")[0].trim();
@@ -58,16 +45,78 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
   const gridTheme =
     theme === "light" ? themeBalham : themeBalham.withPart(colorSchemeDark);
 
-  const defaultColDef: ColDef = {
-    flex: 1,
-    minWidth: 130,
-    sortable: true,
-    filter: true,
-    resizable: true,
-    filterParams: { buttons: ["reset", "apply"] },
-    cellRenderer: CustomCellRenderer,
-    autoHeight: true,
-  };
+  const defaultColDef = useMemo(() => createDefaultColDef(), []);
+  const gridRef = useRef<AgGridReact<IRow>>(null);
+  const metaGridRef = useRef<AgGridReact<any>>(null);
+
+  const [pinnedColumnsState, setPinnedColumnsState] = useState<PinnedColumnsState>({});
+  const [metaPinnedColumnsState, setMetaPinnedColumnsState] = useState<PinnedColumnsState>({});
+
+  // Column pinning and manipulation callbacks
+  const handlePinColumn = useCallback(
+    (colId: string, pinned: ColumnPinnedType) => {
+      setPinnedColumnsState((prev) => ({
+        ...prev,
+        [colId]: pinned,
+      }));
+
+      const gridApi = gridRef.current?.api;
+      if (gridApi) {
+        gridApi.applyColumnState({
+          state: [{ colId, pinned }],
+        });
+      }
+    },
+    []
+  );
+
+  const handleAutoSizeColumn = useCallback((colId: string) => {
+    const gridApi = gridRef.current?.api;
+    if (gridApi) {
+      gridApi.autoSizeColumns([colId]);
+    }
+  }, []);
+
+  const handleResetColumns = useCallback(() => {
+    setPinnedColumnsState({});
+    const gridApi = gridRef.current?.api;
+    if (gridApi) {
+      gridApi.resetColumnState();
+    }
+  }, []);
+
+  // Metadata grid column handlers
+  const handleMetaPinColumn = useCallback(
+    (colId: string, pinned: ColumnPinnedType) => {
+      setMetaPinnedColumnsState((prev) => ({
+        ...prev,
+        [colId]: pinned,
+      }));
+
+      const gridApi = metaGridRef.current?.api;
+      if (gridApi) {
+        gridApi.applyColumnState({
+          state: [{ colId, pinned }],
+        });
+      }
+    },
+    []
+  );
+
+  const handleMetaAutoSizeColumn = useCallback((colId: string) => {
+    const gridApi = metaGridRef.current?.api;
+    if (gridApi) {
+      gridApi.autoSizeColumns([colId]);
+    }
+  }, []);
+
+  const handleMetaResetColumns = useCallback(() => {
+    setMetaPinnedColumnsState({});
+    const gridApi = metaGridRef.current?.api;
+    if (gridApi) {
+      gridApi.resetColumnState();
+    }
+  }, []);
 
   const handleResultIndexChange = (index: string) => {
     const numIndex = parseInt(index, 10);
@@ -84,11 +133,23 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
 
     const colDefs: ColDef<IRow>[] = currentResult.result.meta.map((col: any) => ({
       headerName: col.name,
+      field: col.name,
       valueGetter: (param: any) => param.data[col.name],
+      headerComponent: AgGridHeaderContextMenu,
+      headerComponentParams: {
+        onPinColumn: handlePinColumn,
+        onAutoSizeColumn: handleAutoSizeColumn,
+        onResetColumns: handleResetColumns,
+      },
     }));
 
     return { columnDefs: colDefs, rowData: currentResult.result.data };
-  }, [currentResult]);
+  }, [currentResult, handlePinColumn, handleAutoSizeColumn, handleResetColumns]);
+
+  const gridOptions = useMemo(
+    () => createGridOptions(rowData.length),
+    [rowData.length]
+  );
 
   const renderResultsTab = () => {
     if (!currentResult) return null;
@@ -124,16 +185,15 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
       <div className="h-full flex flex-col">
         <div className="flex-1">
           <AgGridReact
+            ref={gridRef}
             rowData={rowData}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
             modules={[AllCommunityModule]}
             theme={gridTheme}
-            pagination={true}
-            paginationPageSize={100}
-            enableCellTextSelection={true}
-            animateRows={true}
+            rowHeight={32}
             suppressMovableColumns={false}
+            {...gridOptions}
           />
         </div>
       </div>
@@ -147,16 +207,40 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
       <div className="h-full flex flex-col">
         <div className="flex-1">
           <AgGridReact
+            ref={metaGridRef}
             rowData={currentResult.result.meta}
             columnDefs={[
-              { headerName: "Column Name", field: "name", flex: 1 },
-              { headerName: "Data Type", field: "type", flex: 1 },
+              {
+                headerName: "Column Name",
+                field: "name",
+                flex: 1,
+                headerComponent: AgGridHeaderContextMenu,
+                headerComponentParams: {
+                  onPinColumn: handleMetaPinColumn,
+                  onAutoSizeColumn: handleMetaAutoSizeColumn,
+                  onResetColumns: handleMetaResetColumns,
+                },
+              },
+              {
+                headerName: "Data Type",
+                field: "type",
+                flex: 1,
+                headerComponent: AgGridHeaderContextMenu,
+                headerComponentParams: {
+                  onPinColumn: handleMetaPinColumn,
+                  onAutoSizeColumn: handleMetaAutoSizeColumn,
+                  onResetColumns: handleMetaResetColumns,
+                },
+              },
             ]}
             defaultColDef={defaultColDef}
             modules={[AllCommunityModule]}
             theme={gridTheme}
+            rowHeight={32}
             pagination={true}
+            paginationPageSize={100}
             enableCellTextSelection={true}
+            animateRows={false}
           />
         </div>
       </div>

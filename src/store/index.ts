@@ -15,6 +15,7 @@ import { isCreateOrInsert } from "@/helpers/sqlUtils";
 import { OverflowMode } from "@clickhouse/client-common/dist/settings";
 import { toast } from "sonner";
 import { appQueries } from "@/features/workspace/editor/appQueries";
+import { retryInitialization } from "@/features/workspace/editor/monacoConfig";
 
 const MAPPED_TABLE_TYPE: Record<string, string> = {"view": "view", "dictionary": "dictionary", "materializedview": "materialized_view"};
 
@@ -225,6 +226,8 @@ const useAppStore = create<AppState>()(
               .checkServerStatus()
               .then(() => {
                 get().checkIsAdmin();
+                // Sync Monaco editor's ClickHouse client
+                retryInitialization(1, 0);
               });
           } catch (error) {
             // Use the enhanced error handling

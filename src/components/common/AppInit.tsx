@@ -16,6 +16,8 @@ declare global {
   }
 }
 import useAppStore from "@/store";
+import { useConnectionStore } from "@/store/connectionStore";
+import { getConnectionById } from "@/lib/db";
 import { toast } from "sonner";
 
 const AppInitializer = ({ children }: { children: ReactNode }) => {
@@ -90,16 +92,47 @@ const AppInitializer = ({ children }: { children: ReactNode }) => {
 
     const init = async () => {
       try {
+        // Check for last connected connection (only if no env credentials set)
+        const { credential } = useAppStore.getState();
+        const { activeConnectionId, setActiveConnection } = useConnectionStore.getState();
+
+        if (activeConnectionId && !credential.url) {
+          console.log("AppInit: Attempting to auto-connect to last connection:", activeConnectionId);
+          try {
+            const savedConnection = await getConnectionById(activeConnectionId);
+            if (savedConnection) {
+              console.log("AppInit: Found saved connection, connecting...");
+              await setCredential({
+                url: savedConnection.url,
+                username: savedConnection.username,
+                password: savedConnection.password,
+                useAdvanced: savedConnection.useAdvanced,
+                customPath: savedConnection.customPath,
+                requestTimeout: savedConnection.requestTimeout,
+                isDistributed: savedConnection.isDistributed,
+                clusterName: savedConnection.clusterName,
+              });
+            }
+          } catch (err) {
+            console.error("AppInit: Auto-connect failed:", err);
+            // Clear activeConnectionId if connection failed
+            setActiveConnection(null);
+          }
+        }
+
         await initializeApp();
         await checkIsAdmin();
       } catch (err) {
         console.error("Initialization failed:", err);
+        // Clear activeConnectionId if initialization failed
+        const { setActiveConnection } = useConnectionStore.getState();
+        setActiveConnection(null);
       } finally {
         setIsLoading(false);
       }
     };
     init();
-  }, [envChecked, initializeApp, checkIsAdmin]);
+  }, [envChecked, initializeApp, checkIsAdmin, setCredential]);
 
   // Effect to handle initialization errors
   useEffect(() => {

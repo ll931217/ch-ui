@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardHeader,
@@ -16,8 +17,10 @@ import {
   ExternalLink,
   UploadCloud,
   Loader2,
+  PlugZap,
 } from "lucide-react";
 import useAppStore from "@/store";
+import { useConnectionStore } from "@/store/connectionStore";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { genTabId } from "@/lib/utils";
@@ -56,10 +59,13 @@ const resourceCards = [
 ];
 
 const HomeTab = () => {
-  const { addTab, runQuery, credential } = useAppStore();
+  const { addTab, runQuery, credential, isServerAvailable } = useAppStore();
+  const { activeConnectionId, connections } = useConnectionStore();
   const [recentItems, setRecentItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const activeConnection = connections.find(c => c.id === activeConnectionId);
 
   useEffect(() => {
     getUsersRecentItems();
@@ -133,9 +139,17 @@ const HomeTab = () => {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-2"
       >
-        <h1 className="text-2xl font-semibold">
-          Welcome {credential?.username}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold">
+            Welcome {credential?.username}
+          </h1>
+          {activeConnection && isServerAvailable && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              <PlugZap className="w-3 h-3" />
+              {activeConnection.name}
+            </Badge>
+          )}
+        </div>
         <p className="text-muted-foreground">Let's get busy...</p>
       </motion.div>
 

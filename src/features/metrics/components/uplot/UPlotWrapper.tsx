@@ -1,7 +1,7 @@
-import React, { useRef, useEffect, useLayoutEffect, useState } from 'react';
-import uPlot from 'uplot';
-import 'uplot/dist/uPlot.min.css';
-import type { UPlotChartProps } from './types';
+import React, { useRef, useEffect, useLayoutEffect, useState } from "react";
+import uPlot from "uplot";
+import "uplot/dist/uPlot.min.css";
+import type { UPlotChartProps } from "./types";
 
 /**
  * Core React wrapper for uPlot
@@ -12,9 +12,9 @@ function UPlotWrapperComponent({
   options,
   onCreate,
   onDelete,
-  className = '',
-  height = '100%',
-  width = '100%',
+  className = "",
+  height = "100%",
+  width = "100%",
 }: UPlotChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -36,22 +36,28 @@ function UPlotWrapperComponent({
     const rect = chartContainerRef.current.getBoundingClientRect();
 
     // Add legend mount callback if legend is enabled
-    const legendMount = options.legend?.show ?
-      (_self: uPlot, el: HTMLElement) => {
-        if (legendContainerRef.current) {
-          legendContainerRef.current.appendChild(el);
+    const legendMount = options.legend?.show
+      ? (_self: uPlot, el: HTMLElement) => {
+          if (legendContainerRef.current) {
+            legendContainerRef.current.appendChild(el);
+          }
         }
-      } : undefined;
+      : undefined;
 
     const chartOptions: uPlot.Options = {
       ...options,
       width: Math.max(Math.floor(rect.width), 300),
-      height: typeof options.height === 'number' ? options.height : Math.max(Math.floor(rect.height), 200),
+      height:
+        typeof options.height === "number"
+          ? options.height
+          : Math.max(Math.floor(rect.height), 200),
       series: options.series || [{}], // Ensure series is always defined
-      legend: options.legend ? {
-        ...options.legend,
-        mount: legendMount,
-      } : undefined,
+      legend: options.legend
+        ? {
+            ...options.legend,
+            mount: legendMount,
+          }
+        : undefined,
     } as uPlot.Options;
 
     try {
@@ -70,11 +76,14 @@ function UPlotWrapperComponent({
         if (!chartContainerRef.current || !chartRef.current) return;
         const r2 = chartContainerRef.current.getBoundingClientRect();
         if (r2.width > 0 && r2.height > 0) {
-          chartRef.current.setSize({ width: Math.floor(r2.width), height: Math.floor(r2.height) });
+          chartRef.current.setSize({
+            width: Math.floor(r2.width),
+            height: Math.floor(r2.height),
+          });
         }
       });
     } catch (error) {
-      console.error('[UPlotWrapper] Failed to create chart:', error);
+      console.error("[UPlotWrapper] Failed to create chart:", error);
     }
 
     // Cleanup
@@ -125,50 +134,54 @@ function UPlotWrapperComponent({
       }
     };
 
-    window.addEventListener('resize', handleWindowResize);
+    window.addEventListener("resize", handleWindowResize);
 
     return () => {
       clearTimeout(resizeTimeout);
       resizeObserver.disconnect();
-      window.removeEventListener('resize', handleWindowResize);
+      window.removeEventListener("resize", handleWindowResize);
     };
   }, [isReady]);
 
   // Handle container styles - ensure legend has space
   const containerStyle: React.CSSProperties = {
-    width: typeof width === 'number' ? `${width}px` : width,
-    height: typeof height === 'number' ? `${height}px` : height,
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'column',
-    minHeight: typeof height === 'string' ? '250px' : undefined,
-    maxHeight: typeof height === 'string' ? '100%' : undefined,
+    width: typeof width === "number" ? `${width}px` : width,
+    // height: typeof height === "number" ? `${height}px` : height,
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    minHeight: typeof height === "string" ? "250px" : undefined,
+    maxHeight: typeof height === "string" ? "100%" : undefined,
   };
 
   const chartStyle: React.CSSProperties = {
-    flex: typeof height === 'number' ? undefined : '1 1 auto',
-    minHeight: typeof height === 'number' ? height : 0,
-    height: typeof height === 'number' ? height : undefined,
-    position: 'relative',
+    flex: typeof height === "number" ? undefined : "1 1 auto",
+    minHeight: typeof height === "number" ? height : 0,
+    height: typeof height === "number" ? height : undefined,
+    position: "relative",
   };
 
   const legendStyle: React.CSSProperties = {
-    flex: '0 0 auto',
-    padding: '8px',
-    backgroundColor: 'var(--legend-bg, rgba(30, 30, 30, 0.95))',
-    borderTop: '1px solid var(--legend-border, rgba(255, 255, 255, 0.2))',
-    minHeight: options?.legend?.show ? '40px' : '0',
+    flex: "0 0 auto",
+    padding: "8px",
+    backgroundColor: "var(--legend-bg, rgba(30, 30, 30, 0.95))",
+    borderTop: "1px solid var(--legend-border, rgba(255, 255, 255, 0.2))",
+    minHeight: options?.legend?.show ? "40px" : "0",
   };
 
   return (
     <div
       ref={containerRef}
-      className={`uplot-container ${className}`}
+      className={`uplot-container h-fit ${className}`}
       style={containerStyle}
     >
       <div ref={chartContainerRef} style={chartStyle} />
       {options?.legend?.show && (
-        <div ref={legendContainerRef} className="uplot-legend-container" style={legendStyle} />
+        <div
+          ref={legendContainerRef}
+          className="uplot-legend-container"
+          style={legendStyle}
+        />
       )}
     </div>
   );

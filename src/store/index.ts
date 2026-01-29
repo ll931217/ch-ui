@@ -190,7 +190,7 @@ const useAppStore = create<AppState>()(
         credentialSource: null,
         updatedSavedQueriesTrigger: "",
         clickhouseSettings: {
-          max_result_rows: "0",
+          max_result_rows: "200",
           max_result_bytes: "0",
           result_overflow_mode: "break" as OverflowMode,
         },
@@ -292,7 +292,7 @@ const useAppStore = create<AppState>()(
               requestTimeout: 30000,
             },
             clickhouseSettings: {
-              max_result_rows: "0",
+              max_result_rows: "200",
               max_result_bytes: "0",
               result_overflow_mode: "break" as OverflowMode,
             },

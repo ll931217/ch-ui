@@ -126,9 +126,27 @@ export function parseQueries(content: string): ParsedQuery[] {
     if (char === ';' && !inSingleQuote && !inDoubleQuote) {
       const trimmedQuery = currentQuery.trim();
       if (trimmedQuery) {
-        // Calculate end position (before semicolon)
-        const queryEndLine = currentLine;
-        const queryEndColumn = currentColumn;
+        // Find actual end of query content (before trailing whitespace)
+        let queryEndLine = queryStartLine;
+        let queryEndColumn = queryStartColumn;
+
+        // Scan through currentQuery to find the last non-whitespace position
+        let tempLine = queryStartLine;
+        let tempCol = queryStartColumn;
+
+        for (let j = 0; j < currentQuery.length; j++) {
+          const c = currentQuery[j];
+          if (c === '\n') {
+            tempLine++;
+            tempCol = 1;
+          } else {
+            if (c !== ' ' && c !== '\t') {
+              queryEndLine = tempLine;
+              queryEndColumn = tempCol;
+            }
+            tempCol++;
+          }
+        }
 
         queries.push({
           text: trimmedQuery,
@@ -192,7 +210,7 @@ export function findQueryAtCursor(
 
     const isBeforeEnd =
       cursorLine < query.endLine ||
-      (cursorLine === query.endLine && cursorColumn <= query.endColumn);
+      (cursorLine === query.endLine && cursorColumn <= query.endColumn + 1);
 
     if (isAfterStart && isBeforeEnd) {
       return i;

@@ -27,17 +27,21 @@ type ItemLike = { title: string; type?: string; tiles?: number };
 
 function defaultSizeFor(it: ItemLike): GridItem {
   // Defaults tuned per type
-  const typeDefaultCols = it.type === 'table' ? 12 : it.type === 'card' ? 3 : 12;
-  const col = Math.max(2, Math.min(12, it.tiles ? it.tiles * 3 : typeDefaultCols));
+  const typeDefaultCols =
+    it.type === "table" ? 12 : it.type === "card" ? 3 : 12;
+  const col = Math.max(
+    2,
+    Math.min(12, it.tiles ? it.tiles * 3 : typeDefaultCols),
+  );
   // Use fractional units instead of fixed pixel rows
-  const rowSpan = it.type === 'table' ? 4 : it.type === 'card' ? 1 : 4; // cards = 1 row, charts = 4 rows
+  const rowSpan = it.type === "table" ? 4 : it.type === "card" ? 1 : 4; // cards = 1 row, charts = 4 rows
   return { id: it.title, colSpan: col, rowSpan };
 }
 
 function minSizeFor(it: ItemLike): GridItem {
   // Allow narrow stats; charts/tables prefer wider
-  const minCols = it.type === 'table' ? 6 : it.type === 'card' ? 2 : 4;
-  const minRows = it.type === 'table' ? 3 : it.type === 'card' ? 1 : 3; // charts need at least 3 rows
+  const minCols = it.type === "table" ? 6 : it.type === "card" ? 2 : 4;
+  const minRows = it.type === "table" ? 3 : it.type === "card" ? 1 : 3; // charts need at least 3 rows
   return { id: it.title, colSpan: minCols, rowSpan: minRows };
 }
 
@@ -47,33 +51,41 @@ function usePersistedLayout(scope: string, items: ItemLike[]) {
   const layoutVersion = 14; // updated for 4-row charts
   const initial = React.useMemo(() => {
     const raw = localStorage.getItem(key);
-    const ver = Number(localStorage.getItem(versionKey) || '0');
+    const ver = Number(localStorage.getItem(versionKey) || "0");
     if (raw && ver === layoutVersion) {
       try {
-        return JSON.parse(raw) as { order: string[]; sizes: Record<string, GridItem> };
+        return JSON.parse(raw) as {
+          order: string[];
+          sizes: Record<string, GridItem>;
+        };
       } catch {}
     }
-    const order = items.map(i => i.title);
+    const order = items.map((i) => i.title);
     const sizes: Record<string, GridItem> = Object.fromEntries(
-      items.map(i => [i.title, defaultSizeFor(i)])
+      items.map((i) => [i.title, defaultSizeFor(i)]),
     );
     return { order, sizes };
   }, [key, items]);
 
   const [state, setState] = React.useState(initial);
-  const save = React.useCallback((next: typeof state) => {
-    setState(next);
-    localStorage.setItem(key, JSON.stringify(next));
-    localStorage.setItem(versionKey, String(layoutVersion));
-  }, [key]);
+  const save = React.useCallback(
+    (next: typeof state) => {
+      setState(next);
+      localStorage.setItem(key, JSON.stringify(next));
+      localStorage.setItem(versionKey, String(layoutVersion));
+    },
+    [key],
+  );
 
   // ensure new items get defaults
   React.useEffect(() => {
-    const missing = items.filter(i => !state.sizes[i.title]);
+    const missing = items.filter((i) => !state.sizes[i.title]);
     if (missing.length) {
       const sizes = { ...state.sizes };
-      missing.forEach(i => sizes[i.title] = defaultSizeFor(i));
-      const order = Array.from(new Set([...state.order, ...items.map(i => i.title)]));
+      missing.forEach((i) => (sizes[i.title] = defaultSizeFor(i)));
+      const order = Array.from(
+        new Set([...state.order, ...items.map((i) => i.title)]),
+      );
       save({ order, sizes });
     }
   }, [items]);
@@ -87,16 +99,21 @@ type SortableRenderArgs = {
   attributes: any;
   listeners: any;
 };
-function SortableItem({ id, children }: { id: string; children: (args: SortableRenderArgs) => React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+function SortableItem({
+  id,
+  children,
+}: {
+  id: string;
+  children: (args: SortableRenderArgs) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    willChange: 'transform',
+    willChange: "transform",
   };
-  return (
-    <>{children({ setNodeRef, style, attributes, listeners })}</>
-  );
+  return <>{children({ setNodeRef, style, attributes, listeners })}</>;
 }
 
 export default function DashboardGrid<T extends ItemLike>({
@@ -109,9 +126,11 @@ export default function DashboardGrid<T extends ItemLike>({
   renderItem: (item: T) => React.ReactNode;
 }) {
   const { state, save } = usePersistedLayout(scope, items);
-  const order = state.order.filter(id => items.find(i => i.title === id));
-  const byId = Object.fromEntries(items.map(i => [i.title, i]));
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const order = state.order.filter((id) => items.find((i) => i.title === id));
+  const byId = Object.fromEntries(items.map((i) => [i.title, i]));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
 
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
@@ -136,21 +155,18 @@ export default function DashboardGrid<T extends ItemLike>({
   };
 
   const resetLayout = () => {
-    const order = items.map(i => i.title);
+    const order = items.map((i) => i.title);
     const sizes: Record<string, GridItem> = Object.fromEntries(
-      items.map(i => [i.title, defaultSizeFor(i)])
+      items.map((i) => [i.title, defaultSizeFor(i)]),
     );
     save({ order, sizes });
   };
 
-  const startResize = (
-    e: React.PointerEvent,
-    id: string,
-  ) => {
+  const startResize = (e: React.PointerEvent, id: string) => {
     e.stopPropagation();
     const handleEl = e.currentTarget as HTMLElement;
     (handleEl as any).setPointerCapture?.(e.pointerId);
-    const tileEl = handleEl.closest('[data-grid-tile]') as HTMLElement | null;
+    const tileEl = handleEl.closest("[data-grid-tile]") as HTMLElement | null;
     const gridEl = tileEl?.parentElement as HTMLElement | null;
     if (!tileEl || !gridEl) return;
 
@@ -158,7 +174,7 @@ export default function DashboardGrid<T extends ItemLike>({
     const startY = e.clientY;
     const rect = gridEl.getBoundingClientRect();
     const styles = window.getComputedStyle(gridEl);
-    const colGap = parseFloat(styles.columnGap || '0') || 0;
+    const colGap = parseFloat(styles.columnGap || "0") || 0;
     const totalCols = 12;
     const colWidth = (rect.width - colGap * (totalCols - 1)) / totalCols;
     // For flexible grid, use a reasonable row height for resize calculations
@@ -184,29 +200,26 @@ export default function DashboardGrid<T extends ItemLike>({
     };
 
     const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
     };
 
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   };
 
-  const startResizeX = (
-    e: React.PointerEvent,
-    id: string,
-  ) => {
+  const startResizeX = (e: React.PointerEvent, id: string) => {
     e.stopPropagation();
     const handleEl = e.currentTarget as HTMLElement;
     (handleEl as any).setPointerCapture?.(e.pointerId);
-    const tileEl = handleEl.closest('[data-grid-tile]') as HTMLElement | null;
+    const tileEl = handleEl.closest("[data-grid-tile]") as HTMLElement | null;
     const gridEl = tileEl?.parentElement as HTMLElement | null;
     if (!tileEl || !gridEl) return;
 
     const startX = e.clientX;
     const rect = gridEl.getBoundingClientRect();
     const styles = window.getComputedStyle(gridEl);
-    const colGap = parseFloat(styles.columnGap || '0') || 0;
+    const colGap = parseFloat(styles.columnGap || "0") || 0;
     const totalCols = 12;
     const colWidth = (rect.width - colGap * (totalCols - 1)) / totalCols;
 
@@ -227,22 +240,19 @@ export default function DashboardGrid<T extends ItemLike>({
     };
 
     const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
     };
 
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   };
 
-  const startResizeY = (
-    e: React.PointerEvent,
-    id: string,
-  ) => {
+  const startResizeY = (e: React.PointerEvent, id: string) => {
     e.stopPropagation();
     const handleEl = e.currentTarget as HTMLElement;
     (handleEl as any).setPointerCapture?.(e.pointerId);
-    const tileEl = handleEl.closest('[data-grid-tile]') as HTMLElement | null;
+    const tileEl = handleEl.closest("[data-grid-tile]") as HTMLElement | null;
     const gridEl = tileEl?.parentElement as HTMLElement | null;
     if (!tileEl || !gridEl) return;
 
@@ -267,25 +277,34 @@ export default function DashboardGrid<T extends ItemLike>({
     };
 
     const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
     };
 
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   };
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={onDragEnd}
+    >
       <SortableContext items={order} strategy={rectSortingStrategy}>
         <div className="flex items-center justify-end pb-2">
-          <button className="text-xs px-2 py-1 rounded border hover:bg-accent" onClick={resetLayout}>Reset layout</button>
+          <button
+            className="text-xs px-2 py-1 rounded border hover:bg-accent"
+            onClick={resetLayout}
+          >
+            Reset layout
+          </button>
         </div>
         <div
           className="grid grid-cols-12 gap-4"
           style={{
-            gridAutoRows: 'minmax(100px, auto)',
-            minHeight: '400px'
+            gridAutoRows: "minmax(100px, auto)",
+            minHeight: "400px",
           }}
         >
           {order.map((id) => {
@@ -307,40 +326,40 @@ export default function DashboardGrid<T extends ItemLike>({
                     gridRow: `span ${size.rowSpan}`,
                   };
                   return (
-                  <div
-                    ref={setNodeRef}
-                    style={mergedStyle}
-                    className="relative h-full group"
-                    data-grid-tile
-                  >
-                    {/* Move grip (drag handle only) */}
-                    <button
-                      className="absolute left-2 top-2 z-10 p-1 rounded bg-background/80 border cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Drag to move"
-                      {...attributes}
-                      {...listeners}
+                    <div
+                      ref={setNodeRef}
+                      style={mergedStyle}
+                      className="relative h-full group"
+                      data-grid-tile
                     >
-                      <Grip className="h-4 w-4" />
-                    </button>
-                    {/* Quick size controls removed for cleaner UI */}
-                    {/* Drag resize handles */}
-                    <div
-                      onPointerDown={(e) => startResizeX(e, id)}
-                      className="absolute -right-1 top-1/2 -translate-y-1/2 z-10 h-6 w-2 rounded-sm border bg-background/90 shadow cursor-e-resize opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Drag to resize width"
-                    />
-                    <div
-                      onPointerDown={(e) => startResizeY(e, id)}
-                      className="absolute left-1/2 -translate-x-1/2 -bottom-1 z-10 h-2 w-6 rounded-sm border bg-background/90 shadow cursor-s-resize opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Drag to resize height"
-                    />
-                    <div
-                      onPointerDown={(e) => startResize(e, id)}
-                      className="absolute right-1 bottom-1 z-10 h-5 w-5 rounded-sm border bg-background/90 shadow cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Drag to resize"
-                    />
-                    {renderItem(itm)}
-                  </div>
+                      {/* Move grip (drag handle only) */}
+                      <button
+                        className="absolute left-2 top-2 z-10 p-1 rounded bg-background/80 border cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Drag to move"
+                        {...attributes}
+                        {...listeners}
+                      >
+                        <Grip className="h-4 w-4" />
+                      </button>
+                      {/* Quick size controls removed for cleaner UI */}
+                      {/* Drag resize handles */}
+                      <div
+                        onPointerDown={(e) => startResizeX(e, id)}
+                        className="absolute -right-1 top-1/2 -translate-y-1/2 z-10 h-6 w-2 rounded-sm border bg-background/90 shadow cursor-e-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Drag to resize width"
+                      />
+                      <div
+                        onPointerDown={(e) => startResizeY(e, id)}
+                        className="absolute left-1/2 -translate-x-1/2 -bottom-1 z-10 h-2 w-6 rounded-sm border bg-background/90 shadow cursor-s-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Drag to resize height"
+                      />
+                      <div
+                        onPointerDown={(e) => startResize(e, id)}
+                        className="absolute right-1 bottom-1 z-10 h-5 w-5 rounded-sm border bg-background/90 shadow cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Drag to resize"
+                      />
+                      {renderItem(itm)}
+                    </div>
                   );
                 }}
               </SortableItem>

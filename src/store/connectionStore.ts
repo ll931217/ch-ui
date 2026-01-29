@@ -2,6 +2,7 @@
 // Connection management store using Zustand
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
   SavedConnection,
   ConnectionDisplay,
@@ -84,11 +85,13 @@ function toDisplay(conn: SavedConnection): ConnectionDisplay {
   };
 }
 
-export const useConnectionStore = create<ConnectionState>((set, get) => ({
-  connections: [],
-  activeConnectionId: null,
-  isLoading: false,
-  error: null,
+export const useConnectionStore = create<ConnectionState>()(
+  persist(
+    (set, get) => ({
+      connections: [],
+      activeConnectionId: null,
+      isLoading: false,
+      error: null,
 
   loadConnections: async () => {
     set({ isLoading: true, error: null });
@@ -322,7 +325,15 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     }
   },
 
-  clearError: () => set({ error: null }),
-}));
+      clearError: () => set({ error: null }),
+    }),
+    {
+      name: "connection-storage",
+      partialize: (state) => ({
+        activeConnectionId: state.activeConnectionId,
+      }),
+    }
+  )
+);
 
 export default useConnectionStore;

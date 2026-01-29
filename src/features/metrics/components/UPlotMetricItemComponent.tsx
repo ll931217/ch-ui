@@ -117,7 +117,7 @@ function UPlotMetricItemComponent({ item }: Props) {
 
   // Observe container size for charts
   useEffect(() => {
-    if (!chartContainerRef.current || item.type !== 'chart') return;
+    if (!chartContainerRef.current || item.type !== "chart") return;
 
     const updateChartHeight = () => {
       if (chartContainerRef.current) {
@@ -137,25 +137,28 @@ function UPlotMetricItemComponent({ item }: Props) {
     };
   }, [item.type]);
 
-  const handleDownloadData = useCallback((data: QueryResult) => {
-    if (!data) return;
+  const handleDownloadData = useCallback(
+    (data: QueryResult) => {
+      if (!data) return;
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
-    });
-    const fileName = `${item.title.replace(/\s+/g, "_").toLowerCase()}.json`;
-    const link = document.createElement("a");
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute("download", fileName);
-      link.style.visibility = "hidden";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }
-  }, [item.title]);
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const fileName = `${item.title.replace(/\s+/g, "_").toLowerCase()}.json`;
+      const link = document.createElement("a");
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", fileName);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    },
+    [item.title],
+  );
 
   const handleCopyQuery = useCallback(() => {
     const preview = previewQuery(item.query, timeRange);
@@ -203,7 +206,9 @@ function UPlotMetricItemComponent({ item }: Props) {
         {Object.entries(item).map(([key, value]) => (
           <div key={key} className="space-y-1">
             <span className="font-semibold text-xl">{value?.toString()}</span>
-            <div className="text-[10px] text-muted-foreground capitalize">{key.replace(/_/g, ' ')}</div>
+            <div className="text-[10px] text-muted-foreground capitalize">
+              {key.replace(/_/g, " ")}
+            </div>
           </div>
         ))}
       </div>
@@ -216,13 +221,17 @@ function UPlotMetricItemComponent({ item }: Props) {
     }
 
     if (!item.chartConfig || !item.chartConfig.indexBy) {
-      return <div className="text-muted-foreground font-bold">Invalid chart configuration</div>;
+      return (
+        <div className="text-muted-foreground font-bold">
+          Invalid chart configuration
+        </div>
+      );
     }
 
     return (
       <UPlotMetricChart
         data={queryResult.data}
-        chartType={(item.chartType as 'line' | 'area' | 'bar') || 'line'}
+        chartType={(item.chartType as "line" | "area" | "bar") || "line"}
         chartConfig={item.chartConfig}
         height={250}
       />
@@ -252,12 +261,20 @@ function UPlotMetricItemComponent({ item }: Props) {
   // Statistics badges removed (elapsed/rows/bytes) per design feedback
 
   return (
-    <Card className={cn("h-full flex flex-col", item.type === 'chart' && "overflow-hidden")} ref={item.type === 'chart' ? chartContainerRef : undefined}>
-      <CardHeader className={cn("shrink-0", item.type === 'chart' ? "pb-1 pt-3" : "pb-2")}>
+    <Card
+      className={cn(
+        "h-full flex flex-col",
+        item.type === "chart" && "overflow-hidden",
+      )}
+      ref={item.type === "chart" ? chartContainerRef : undefined}
+    >
+      <CardHeader
+        className={cn("shrink-0", item.type === "chart" ? "pb-1 pt-3" : "pb-2")}
+      >
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg truncate flex items-center gap-2">
             {item.title}
-            {item.type === 'chart' && <Zap className="h-4 w-4 text-primary" />}
+            {item.type === "chart" && <Zap className="h-4 w-4 text-primary" />}
           </CardTitle>
           <div className="flex items-center space-x-1">
             <TooltipProvider>
@@ -297,11 +314,17 @@ function UPlotMetricItemComponent({ item }: Props) {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
-                    const jsonString = JSON.stringify(queryResult!.data, null, 2);
+                    const jsonString = JSON.stringify(
+                      queryResult!.data,
+                      null,
+                      2,
+                    );
                     navigator.clipboard
                       .writeText(jsonString)
                       .then(() => toast.success("Data copied to clipboard"))
-                      .catch(() => toast.error("Failed to copy data to clipboard"));
+                      .catch(() =>
+                        toast.error("Failed to copy data to clipboard"),
+                      );
                   }}
                 >
                   <Braces className="w-4 h-4 mr-2" />
@@ -313,15 +336,17 @@ function UPlotMetricItemComponent({ item }: Props) {
         </div>
         {/* Removed noisy inline statistics badges */}
       </CardHeader>
-      <CardContent className={cn(
-        "flex-1 min-h-0",
-        item.type === 'chart' ? "p-2 pt-0 pb-3" : "pt-0 overflow-auto"
-      )}>
-        <div className={cn("h-full", item.type === 'chart' && "flex flex-col")}>
-          {item.type === 'chart' ? (
+      <CardContent
+        className={cn(
+          "flex-1 min-h-0",
+          item.type === "chart" ? "p-2 pt-0 pb-3" : "pt-0 overflow-auto",
+        )}
+      >
+        <div className={cn("h-full", item.type === "chart" && "flex flex-col")}>
+          {item.type === "chart" ? (
             <UPlotMetricChart
               data={queryResult?.data || []}
-              chartType={(item.chartType as 'line' | 'area' | 'bar') || 'line'}
+              chartType={(item.chartType as "line" | "area" | "bar") || "line"}
               chartConfig={item.chartConfig}
               height={chartHeight}
             />

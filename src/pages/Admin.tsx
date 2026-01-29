@@ -33,6 +33,15 @@ export default function Admin() {
               <Button
                 variant="ghost"
                 className={`w-full justify-start ${
+                  activeSection === "config" ? "" : "text-gray-400"
+                } hover:bg-muted/50`}
+                onClick={() => setActiveSection("config")}
+              >
+                Configuration
+              </Button>
+              <Button
+                variant="ghost"
+                className={`w-full justify-start ${
                   activeSection === "users" ? "" : "text-gray-400"
                 } hover:bg-muted/50`}
                 onClick={() => setActiveSection("users")}
@@ -47,15 +56,6 @@ export default function Admin() {
                 onClick={() => setActiveSection("queries")}
               >
                 Saved Queries
-              </Button>
-              <Button
-                variant="ghost"
-                className={`w-full justify-start ${
-                  activeSection === "config" ? "" : "text-gray-400"
-                } hover:bg-muted/50`}
-                onClick={() => setActiveSection("config")}
-              >
-                Configuration
               </Button>
             </nav>
           </div>

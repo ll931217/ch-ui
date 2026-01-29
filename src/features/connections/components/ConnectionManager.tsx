@@ -67,7 +67,7 @@ export default function ConnectionManager() {
     clearError,
   } = useConnectionStore();
 
-  const { setCredential, checkServerStatus } = useAppStore();
+  const { setCredential, checkServerStatus, isServerAvailable } = useAppStore();
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingConnection, setEditingConnection] = useState<ConnectionDisplay | null>(null);
@@ -217,9 +217,13 @@ export default function ConnectionManager() {
                     </div>
 
                     <div className="flex items-center gap-1">
-                      {activeConnectionId === conn.id ? (
+                      {activeConnectionId === conn.id && isServerAvailable ? (
                         <Badge variant="default" className="mr-2">
                           Connected
+                        </Badge>
+                      ) : activeConnectionId === conn.id && !isServerAvailable ? (
+                        <Badge variant="destructive" className="mr-2">
+                          Disconnected
                         </Badge>
                       ) : (
                         <Button

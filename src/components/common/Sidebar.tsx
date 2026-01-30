@@ -177,13 +177,6 @@ const Sidebar = () => {
         )}
       </div>
 
-      {/* Connection Switcher */}
-      {isExpanded && (
-        <div className="px-2 py-1">
-          <ConnectionSwitcher />
-        </div>
-      )}
-
       <ScrollArea className="flex-grow">
         <nav className="space-y-1 p-2">
           {isServerAvailable && navItems.map((item) => (

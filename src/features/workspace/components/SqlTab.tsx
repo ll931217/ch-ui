@@ -442,6 +442,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
           defaultSize={300}
           minSize={200}
           collapsible
+          collapsedSize={0}
         >
           <SQLEditor
             tabId={tabId}
@@ -454,7 +455,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
           id="sql-results"
           minSize={100}
           collapsible
-          collapsedSize={20}
+          collapsedSize={0}
         >
           {renderResults()}
         </ResizablePanel>

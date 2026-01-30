@@ -45,9 +45,7 @@ export default function ConnectionSwitcher() {
     loadConnections();
   }, [loadConnections]);
 
-  const activeConnection = connections.find(
-    (c) => c.id === activeConnectionId
-  );
+  const activeConnection = connections.find((c) => c.id === activeConnectionId);
 
   const handleConnect = async (connection: ConnectionDisplay) => {
     setConnectingId(connection.id);
@@ -70,7 +68,7 @@ export default function ConnectionSwitcher() {
     } catch (err) {
       toast.error(
         "Failed to connect: " +
-          (err instanceof Error ? err.message : "Unknown error")
+          (err instanceof Error ? err.message : "Unknown error"),
       );
     } finally {
       setConnectingId(null);
@@ -96,7 +94,7 @@ export default function ConnectionSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           className="w-full justify-between gap-2"
         >

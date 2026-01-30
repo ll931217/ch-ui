@@ -42,7 +42,6 @@ export interface TreeNodeData {
 interface TreeNodeProps {
   node: TreeNodeData;
   level: number;
-  searchTerm: string;
   parentDatabaseName?: string;
   refreshData: () => void;
 }
@@ -50,7 +49,6 @@ interface TreeNodeProps {
 const TreeNode: React.FC<TreeNodeProps> = ({
   node,
   level,
-  searchTerm,
   parentDatabaseName,
   refreshData,
 }) => {
@@ -340,20 +338,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     ]
   );
 
-  const matchesSearch = node.name
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase());
-  const childrenMatchSearch = node.children?.some(
-    (child) =>
-      child.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      child.children?.some((grandchild) =>
-        grandchild.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-  );
-
-  const shouldRender = !searchTerm || matchesSearch || childrenMatchSearch;
-
-  return shouldRender ? (
+  return (
     <>
       <ContextMenu>
         <ContextMenuTrigger>
@@ -420,7 +405,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
             )
           )}
         </ContextMenuContent>
-        {(isOpen || searchTerm) && node.children && (
+        {isOpen && node.children && (
           <div>
             {node.children.length > 0 ? (
               node.children.map((child, index) => (
@@ -428,7 +413,6 @@ const TreeNode: React.FC<TreeNodeProps> = ({
                   key={index}
                   node={child}
                   level={level + 1}
-                  searchTerm={searchTerm}
                   parentDatabaseName={
                     node.type === "database" ? node.name : parentDatabaseName
                   }
@@ -457,7 +441,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         cancelText="Cancel"
       />
     </>
-  ) : null;
+  );
 };
 
 export default TreeNode;

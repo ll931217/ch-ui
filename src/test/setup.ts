@@ -40,3 +40,15 @@ global.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
 } as any;
+
+// Mock monaco-editor
+vi.mock("monaco-editor", () => ({
+  editor: {
+    create: vi.fn(),
+    setTheme: vi.fn(),
+  },
+  languages: {
+    register: vi.fn(),
+    setMonarchTokensProvider: vi.fn(),
+  },
+}));

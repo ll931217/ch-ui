@@ -43,6 +43,8 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const decorationsRef = useRef<string[]>([]);
+  const isDisposedRef = useRef(false);           // Track disposed state
+  const highlightTimeoutRef = useRef<number>();  // Track pending timeout
   const tab = getTabById(tabId);
   const { theme } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
@@ -60,18 +62,16 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
 
   // Parse queries when content changes
   const updateParsedQueries = useCallback(() => {
-    if (monacoRef.current) {
-      const content = monacoRef.current.getValue();
-      const queries = parseQueries(content);
-      setParsedQueries(queries);
-      return queries;
-    }
-    return [];
+    if (isDisposedRef.current || !monacoRef.current) return [];
+    const content = monacoRef.current.getValue();
+    const queries = parseQueries(content);
+    setParsedQueries(queries);
+    return queries;
   }, []);
 
   // Update current query highlighting based on cursor position
   const updateCurrentQueryHighlight = useCallback(() => {
-    if (!monacoRef.current) return;
+    if (isDisposedRef.current || !monacoRef.current) return;
 
     const position = monacoRef.current.getPosition();
     if (!position) return;
@@ -112,6 +112,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   useEffect(() => {
     initializeMonacoGlobally();
     if (editorRef.current) {
+      isDisposedRef.current = false;  // Reset disposed state
       const editor = createMonacoEditor(editorRef.current, editorTheme);
       monacoRef.current = editor;
 
@@ -128,8 +129,8 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
         const newContent = editor.getValue();
         updateTab(tabId, { content: newContent });
         updateParsedQueries();
-        // Delay highlight update to ensure cursor position is updated
-        setTimeout(updateCurrentQueryHighlight, 0);
+        // Track timeout for cleanup
+        highlightTimeoutRef.current = window.setTimeout(updateCurrentQueryHighlight, 0);
       });
 
       // Track cursor position changes
@@ -163,9 +164,17 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
       }
 
       return () => {
+        // Clear pending timeout first
+        if (highlightTimeoutRef.current) {
+          clearTimeout(highlightTimeoutRef.current);
+        }
+        // Mark as disposed before any disposal
+        isDisposedRef.current = true;
         changeListener.dispose();
         cursorListener.dispose();
         editor.dispose();
+        // Clear the ref
+        monacoRef.current = null;
         // Clean up style element
         const styleElement = document.getElementById(styleId);
         if (styleElement) {

@@ -16,6 +16,7 @@ import { OverflowMode } from "@clickhouse/client-common/dist/settings";
 import { toast } from "sonner";
 import { appQueries } from "@/features/workspace/editor/appQueries";
 import { retryInitialization } from "@/features/workspace/editor/monacoConfig";
+import { useConnectionStore } from "@/store/connectionStore";
 
 const MAPPED_TABLE_TYPE: Record<string, string> = {"view": "view", "dictionary": "dictionary", "materializedview": "materialized_view"};
 
@@ -226,6 +227,7 @@ const useAppStore = create<AppState>()(
               .checkServerStatus()
               .then(() => {
                 get().checkIsAdmin();
+                get().checkUserPrivileges();
                 // Sync Monaco editor's ClickHouse client
                 retryInitialization(1, 0);
               });
@@ -694,6 +696,7 @@ const useAppStore = create<AppState>()(
         selectedDatabaseForDelete: null,
         selectedTableForDelete: null,
         selectedDatabaseForUpload: "",
+        selectedDatabase: null,
 
         /**
          * Fetches database and table information from ClickHouse
@@ -777,11 +780,14 @@ const useAppStore = create<AppState>()(
             isUploadFileModalOpen: true,
             selectedDatabaseForUpload: database,
           }),
+        setSelectedDatabase: (database) =>
+          set({ selectedDatabase: database }),
 
         // =====================================================
         // Admin & Saved Queries Actions
         // =====================================================
         isAdmin: false,
+        userPrivileges: null,
         savedQueries: {
           isSavedQueriesActive: false,
           isCheckingStatus: false,
@@ -822,6 +828,94 @@ const useAppStore = create<AppState>()(
             console.error("Failed to check admin status:", errorMessage);
             set({ isAdmin: false });
             return false;
+          }
+        },
+
+        /**
+         * Checks granular user privileges from system.grants
+         */
+        checkUserPrivileges: async (): Promise<void> => {
+          const { clickHouseClient } = get();
+          if (!clickHouseClient) {
+            console.warn("checkUserPrivileges: ClickHouse client is not initialized");
+            set({ userPrivileges: null });
+            return;
+          }
+
+          try {
+            // Query all grants for current user and their roles
+            const query = `
+              SELECT DISTINCT access_type, grant_option
+              FROM system.grants
+              WHERE user_name = currentUser()
+                 OR role_name IN (
+                   SELECT granted_role_name
+                   FROM system.role_grants
+                   WHERE user_name = currentUser()
+                 )
+            `;
+
+            const result = await clickHouseClient.query({ query });
+            const response = await result.json<{
+              data: Array<{ access_type: string; grant_option: number }>
+            }>();
+
+            // Create a set of granted access types for quick lookup
+            const grantedPrivileges = new Set(
+              response.data.map(row => row.access_type.toUpperCase())
+            );
+
+            // Check for grant option
+            const hasGrantOption = response.data.some(row => row.grant_option === 1);
+
+            // Helper to check if user has specific privilege
+            const hasPrivilege = (privilege: string): boolean => {
+              return grantedPrivileges.has(privilege.toUpperCase()) ||
+                     grantedPrivileges.has('ALL');
+            };
+
+            // Build privileges object
+            set({
+              userPrivileges: {
+                // View privileges
+                canShowUsers: hasPrivilege('SHOW USERS') || hasPrivilege('SHOW ACCESS'),
+                canShowRoles: hasPrivilege('SHOW ROLES') || hasPrivilege('SHOW ACCESS'),
+                canShowQuotas: hasPrivilege('SHOW QUOTAS') || hasPrivilege('SHOW ACCESS'),
+                canShowRowPolicies: hasPrivilege('SHOW ROW POLICIES') || hasPrivilege('SHOW ACCESS'),
+                canShowSettingsProfiles: hasPrivilege('SHOW SETTINGS PROFILES') || hasPrivilege('SHOW ACCESS'),
+
+                // User modification privileges
+                canAlterUser: hasPrivilege('ALTER USER') || hasPrivilege('ACCESS MANAGEMENT'),
+                canCreateUser: hasPrivilege('CREATE USER') || hasPrivilege('ACCESS MANAGEMENT'),
+                canDropUser: hasPrivilege('DROP USER') || hasPrivilege('ACCESS MANAGEMENT'),
+
+                // Role modification privileges
+                canAlterRole: hasPrivilege('ALTER ROLE') || hasPrivilege('ROLE ADMIN') || hasPrivilege('ACCESS MANAGEMENT'),
+                canCreateRole: hasPrivilege('CREATE ROLE') || hasPrivilege('ROLE ADMIN') || hasPrivilege('ACCESS MANAGEMENT'),
+                canDropRole: hasPrivilege('DROP ROLE') || hasPrivilege('ROLE ADMIN') || hasPrivilege('ACCESS MANAGEMENT'),
+
+                // Quota privileges
+                canAlterQuota: hasPrivilege('ALTER QUOTA') || hasPrivilege('ACCESS MANAGEMENT'),
+                canCreateQuota: hasPrivilege('CREATE QUOTA') || hasPrivilege('ACCESS MANAGEMENT'),
+                canDropQuota: hasPrivilege('DROP QUOTA') || hasPrivilege('ACCESS MANAGEMENT'),
+
+                // Row policy privileges
+                canAlterRowPolicy: hasPrivilege('ALTER ROW POLICY') || hasPrivilege('ACCESS MANAGEMENT'),
+                canCreateRowPolicy: hasPrivilege('CREATE ROW POLICY') || hasPrivilege('ACCESS MANAGEMENT'),
+                canDropRowPolicy: hasPrivilege('DROP ROW POLICY') || hasPrivilege('ACCESS MANAGEMENT'),
+
+                // Settings profile privileges
+                canAlterSettingsProfile: hasPrivilege('ALTER SETTINGS PROFILE') || hasPrivilege('ACCESS MANAGEMENT'),
+                canCreateSettingsProfile: hasPrivilege('CREATE SETTINGS PROFILE') || hasPrivilege('ACCESS MANAGEMENT'),
+                canDropSettingsProfile: hasPrivilege('DROP SETTINGS PROFILE') || hasPrivilege('ACCESS MANAGEMENT'),
+
+                // Grant option
+                hasGrantOption,
+              },
+            });
+          } catch (error) {
+            console.error("Failed to check user privileges:", error);
+            set({ userPrivileges: null });
           }
         },
 
@@ -910,6 +1004,7 @@ const useAppStore = create<AppState>()(
                   updated_at DateTime64(3),
                   owner String,
                   is_public Boolean DEFAULT false,
+                  connection_id String DEFAULT '',
                   PRIMARY KEY (id)
                 ) ENGINE = MergeTree()
                 ORDER BY (id, created_at)
@@ -1000,8 +1095,11 @@ const useAppStore = create<AppState>()(
             const safeName = escapeClickhouseString(name);
             const safeQuery = escapeClickhouseString(query);
 
+            // Get the active connection ID
+            const activeConnectionId = useConnectionStore.getState().activeConnectionId || '';
+
             const insertQuery = `
-              INSERT INTO CH_UI.saved_queries (id, name, query, created_at, updated_at, owner, is_public)
+              INSERT INTO CH_UI.saved_queries (id, name, query, created_at, updated_at, owner, is_public, connection_id)
               VALUES (
                 '${tabId}',
                 '${safeName}',
@@ -1009,7 +1107,8 @@ const useAppStore = create<AppState>()(
                 now(),
                 now(),
                 currentUser(),
-                ${isPublic}
+                ${isPublic},
+                '${activeConnectionId}'
               )
             `;
 
@@ -1111,10 +1210,20 @@ const useAppStore = create<AppState>()(
           }
           try {
             let query;
+
+            // Get the active connection ID
+            const activeConnectionId = useConnectionStore.getState().activeConnectionId || '';
+
             if (id) {
               query = `SELECT * FROM CH_UI.saved_queries WHERE id = '${id}'`;
             } else {
-              query = appQueries.getSavedQueries.query;
+              // Filter by connection_id if we have an active connection
+              if (activeConnectionId) {
+                query = `SELECT * FROM CH_UI.saved_queries WHERE connection_id = '${activeConnectionId}' ORDER BY updated_at DESC`;
+              } else {
+                // If no active connection, show all queries (for backward compatibility)
+                query = appQueries.getSavedQueries.query;
+              }
             }
             const result = await clickHouseClient.query({ query });
             const jsonResult = (await result.json()) as { data: SavedQuery[] };

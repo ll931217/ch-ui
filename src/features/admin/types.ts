@@ -16,3 +16,39 @@ export interface UserData {
   settings_profile?: string;
   readonly?: boolean;
 }
+
+/**
+ * Granular user privileges derived from ClickHouse native grants
+ */
+export interface UserPrivileges {
+  // View privileges (SHOW)
+  canShowUsers: boolean;
+  canShowRoles: boolean;
+  canShowQuotas: boolean;
+  canShowRowPolicies: boolean;
+  canShowSettingsProfiles: boolean;
+
+  // Modify privileges
+  canAlterUser: boolean;
+  canAlterRole: boolean;
+  canCreateUser: boolean;
+  canCreateRole: boolean;
+  canDropUser: boolean;
+  canDropRole: boolean;
+
+  // Quota and policy privileges
+  canAlterQuota: boolean;
+  canCreateQuota: boolean;
+  canDropQuota: boolean;
+  canAlterRowPolicy: boolean;
+  canCreateRowPolicy: boolean;
+  canDropRowPolicy: boolean;
+
+  // Settings profile privileges
+  canAlterSettingsProfile: boolean;
+  canCreateSettingsProfile: boolean;
+  canDropSettingsProfile: boolean;
+
+  // Grant option (can grant privileges to others)
+  hasGrantOption: boolean;
+}

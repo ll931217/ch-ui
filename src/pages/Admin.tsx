@@ -5,10 +5,16 @@ import { InfoIcon, ShieldCheck } from "lucide-react";
 import InfoDialog from "@/components/common/InfoDialog";
 import ActivateSavedQueries from "@/features/admin/components/ActivateSavedQueries";
 import ClickhouseDefaultConfiguration from "@/features/admin/components/ClickhouseDefaultConfiguration";
+import PermissionsConfig from "@/features/admin/components/PermissionsConfig";
+import useAppStore from "@/store";
 
 export default function Admin() {
+  const { userPrivileges } = useAppStore();
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("config");
+
+  // Check if user can view users/roles section
+  const canViewUsersRoles = userPrivileges?.canShowUsers || userPrivileges?.canShowRoles;
 
   return (
     <div className="max-h-screen w-full overflow-y-auto">
@@ -39,15 +45,28 @@ export default function Admin() {
               >
                 Configuration
               </Button>
-              <Button
-                variant="ghost"
-                className={`w-full justify-start ${
-                  activeSection === "users" ? "" : "text-gray-400"
-                } hover:bg-muted/50`}
-                onClick={() => setActiveSection("users")}
-              >
-                Users & Roles
-              </Button>
+              {canViewUsersRoles && (
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-start ${
+                    activeSection === "users" ? "" : "text-gray-400"
+                  } hover:bg-muted/50`}
+                  onClick={() => setActiveSection("users")}
+                >
+                  Users & Roles
+                </Button>
+              )}
+              {canViewUsersRoles && (
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-start ${
+                    activeSection === "permissions" ? "" : "text-gray-400"
+                  } hover:bg-muted/50`}
+                  onClick={() => setActiveSection("permissions")}
+                >
+                  Permissions Config
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 className={`w-full justify-start ${
@@ -86,6 +105,12 @@ export default function Admin() {
                     Manage ClickHouse configuration settings.
                   </p>
                   <ClickhouseDefaultConfiguration />
+                </div>
+              )}
+
+              {activeSection === "permissions" && (
+                <div>
+                  <PermissionsConfig />
                 </div>
               )}
             </div>

@@ -51,6 +51,7 @@ export interface SavedQuery {
   updated_at: string;
   owner: string;
   is_public: boolean;
+  connection_id?: string;
 }
 
 interface SavedQueriesState {
@@ -105,11 +106,35 @@ interface ExplorerState {
   selectedTableForDelete: string | null;
   isUploadFileModalOpen: boolean;
   selectedDatabaseForUpload: string;
+  selectedDatabase: string | null;
 }
 
 interface AdminState {
   isAdmin: boolean;
   savedQueries: SavedQueriesState;
+  userPrivileges: {
+    canShowUsers: boolean;
+    canShowRoles: boolean;
+    canShowQuotas: boolean;
+    canShowRowPolicies: boolean;
+    canShowSettingsProfiles: boolean;
+    canAlterUser: boolean;
+    canAlterRole: boolean;
+    canCreateUser: boolean;
+    canCreateRole: boolean;
+    canDropUser: boolean;
+    canDropRole: boolean;
+    canAlterQuota: boolean;
+    canCreateQuota: boolean;
+    canDropQuota: boolean;
+    canAlterRowPolicy: boolean;
+    canCreateRowPolicy: boolean;
+    canDropRowPolicy: boolean;
+    canAlterSettingsProfile: boolean;
+    canCreateSettingsProfile: boolean;
+    canDropSettingsProfile: boolean;
+    hasGrantOption: boolean;
+  } | null;
 }
 
 export interface AppState
@@ -143,8 +168,10 @@ export interface AppState
   openCreateDatabaseModal: () => void;
   closeUploadFileModal: () => void;
   openUploadFileModal: (database: string) => void;
+  setSelectedDatabase: (database: string | null) => void;
 
   checkIsAdmin: () => Promise<boolean>;
+  checkUserPrivileges: () => Promise<void>;
   activateSavedQueries: () => Promise<void>;
   deactivateSavedQueries: () => Promise<boolean>;
   checkSavedQueriesStatus: () => Promise<boolean>;

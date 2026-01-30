@@ -32,5 +32,8 @@ export default defineConfig({
         "**/__tests__/",
       ],
     },
+    alias: {
+      "monaco-editor": "/__mocks__/monaco-editor.ts",
+    },
   },
 });

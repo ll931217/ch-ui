@@ -26,11 +26,14 @@ interface ConnectionState {
   isLoading: boolean;
   error: string | null;
   databasesByConnection: Record<string, string[]>;
+  lastSelectedDatabaseByConnection: Record<string, string>;
 
   // Actions
   loadConnections: () => Promise<void>;
   cacheDatabasesForConnection: (connectionId: string, databases: string[]) => void;
   getDatabasesForConnection: (connectionId: string) => string[];
+  setLastSelectedDatabase: (connectionId: string, database: string | null) => void;
+  getLastSelectedDatabase: (connectionId: string) => string | null;
   saveConnection: (connection: {
     name: string;
     url: string;
@@ -100,6 +103,7 @@ export const useConnectionStore = create<ConnectionState>()(
       isLoading: false,
       error: null,
       databasesByConnection: {},
+      lastSelectedDatabaseByConnection: {},
 
   cacheDatabasesForConnection: (connectionId, databases) => {
     set((state) => ({
@@ -112,6 +116,22 @@ export const useConnectionStore = create<ConnectionState>()(
 
   getDatabasesForConnection: (connectionId) => {
     return get().databasesByConnection[connectionId] || [];
+  },
+
+  setLastSelectedDatabase: (connectionId, database) => {
+    set((state) => {
+      const updated = { ...state.lastSelectedDatabaseByConnection };
+      if (database === null) {
+        delete updated[connectionId];
+      } else {
+        updated[connectionId] = database;
+      }
+      return { lastSelectedDatabaseByConnection: updated };
+    });
+  },
+
+  getLastSelectedDatabase: (connectionId) => {
+    return get().lastSelectedDatabaseByConnection[connectionId] || null;
   },
 
   loadConnections: async () => {
@@ -237,6 +257,13 @@ export const useConnectionStore = create<ConnectionState>()(
       if (get().activeConnectionId === id) {
         set({ activeConnectionId: null });
       }
+
+      // Clean up last selected database for deleted connection
+      set((state) => {
+        const updated = { ...state.lastSelectedDatabaseByConnection };
+        delete updated[id];
+        return { lastSelectedDatabaseByConnection: updated };
+      });
 
       await get().loadConnections();
       set({ isLoading: false });
@@ -396,6 +423,7 @@ export const useConnectionStore = create<ConnectionState>()(
       name: "connection-storage",
       partialize: (state) => ({
         activeConnectionId: state.activeConnectionId,
+        lastSelectedDatabaseByConnection: state.lastSelectedDatabaseByConnection,
       }),
     }
   )

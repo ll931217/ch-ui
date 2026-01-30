@@ -99,12 +99,11 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
           {
             range: new monaco.Range(
               query.startLine,
-              1,
+              query.startColumn,
               query.endLine,
-              monacoRef.current.getModel()?.getLineMaxColumn(query.endLine) || 1
+              query.endColumn + 1
             ),
             options: {
-              isWholeLine: true,
               className: HIGHLIGHT_DECORATION_CLASS,
               inlineClassName: HIGHLIGHT_DECORATION_CLASS,
             },

@@ -34,6 +34,7 @@ export function parseQueries(content: string): ParsedQuery[] {
   let currentQuery = '';
   let queryStartLine = 1;
   let queryStartColumn = 1;
+  let hasActualCode = false; // Track if we've seen actual SQL code (not just comments/whitespace)
 
   let inSingleQuote = false;
   let inDoubleQuote = false;
@@ -159,6 +160,7 @@ export function parseQueries(content: string): ParsedQuery[] {
 
       // Reset for next query
       currentQuery = '';
+      hasActualCode = false;
       // Next query starts after semicolon
       queryStartLine = currentLine;
       queryStartColumn = currentColumn + 1;
@@ -166,10 +168,19 @@ export function parseQueries(content: string): ParsedQuery[] {
       continue;
     }
 
-    // Track start of actual content (skip leading whitespace)
-    if (currentQuery === '' && char !== ' ' && char !== '\t' && char !== '\n') {
+    // Track start of actual content (skip leading whitespace and comments)
+    if (
+      !hasActualCode &&
+      !inSingleLineComment &&
+      !inMultiLineComment &&
+      char !== ' ' &&
+      char !== '\t' &&
+      char !== '\n'
+    ) {
       queryStartLine = currentLine;
       queryStartColumn = currentColumn;
+      hasActualCode = true;
+      currentQuery = ''; // Reset to exclude leading whitespace/comments
     }
 
     currentQuery += char;

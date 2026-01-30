@@ -116,6 +116,136 @@ SELECT * FROM orders`;
     expect(queries).toHaveLength(1);
     expect(queries[0].text).toContain("O''Brien");
   });
+
+  it('should track column positions for multiple queries on same line', () => {
+    const content = 'SELECT 1; SELECT 2;';
+    const queries = parseQueries(content);
+    expect(queries).toHaveLength(2);
+
+    // First query: "SELECT 1"
+    expect(queries[0].text).toBe('SELECT 1');
+    expect(queries[0].startLine).toBe(1);
+    expect(queries[0].startColumn).toBe(1);
+    expect(queries[0].endLine).toBe(1);
+
+    // Second query: "SELECT 2"
+    expect(queries[1].text).toBe('SELECT 2');
+    expect(queries[1].startLine).toBe(1);
+    expect(queries[1].startColumn).toBe(11); // After "; "
+    expect(queries[1].endLine).toBe(1);
+  });
+
+  it('should handle queries with blank lines between them', () => {
+    const content = `SELECT 1;
+
+SELECT 2;`;
+    const queries = parseQueries(content);
+    expect(queries).toHaveLength(2);
+
+    // First query should end on line 1
+    expect(queries[0].text).toBe('SELECT 1');
+    expect(queries[0].startLine).toBe(1);
+    expect(queries[0].endLine).toBe(1);
+
+    // Second query should start on line 3 (after blank line 2)
+    expect(queries[1].text).toBe('SELECT 2');
+    expect(queries[1].startLine).toBe(3);
+    expect(queries[1].endLine).toBe(3);
+  });
+
+  it('should handle multiple blank lines between queries', () => {
+    const content = `SELECT 1;
+
+
+SELECT 2;`;
+    const queries = parseQueries(content);
+    expect(queries).toHaveLength(2);
+
+    // First query
+    expect(queries[0].text).toBe('SELECT 1');
+    expect(queries[0].startLine).toBe(1);
+    expect(queries[0].endLine).toBe(1);
+
+    // Second query should start on line 4 (after blank lines 2-3)
+    expect(queries[1].text).toBe('SELECT 2');
+    expect(queries[1].startLine).toBe(4);
+    expect(queries[1].endLine).toBe(4);
+  });
+
+  it('should handle indented queries after blank lines', () => {
+    const content = `SELECT 1;
+
+  SELECT 2;`;
+    const queries = parseQueries(content);
+    expect(queries).toHaveLength(2);
+
+    // First query
+    expect(queries[0].text).toBe('SELECT 1');
+    expect(queries[0].startLine).toBe(1);
+
+    // Second query with indentation
+    expect(queries[1].text).toBe('SELECT 2');
+    expect(queries[1].startLine).toBe(3);
+    expect(queries[1].startColumn).toBe(3); // After 2 spaces
+  });
+
+  it('should handle same-line queries with extra whitespace', () => {
+    const content = 'SELECT 1;    SELECT 2;     SELECT 3;';
+    const queries = parseQueries(content);
+    expect(queries).toHaveLength(3);
+
+    expect(queries[0].text).toBe('SELECT 1');
+    expect(queries[0].startLine).toBe(1);
+    expect(queries[0].startColumn).toBe(1);
+
+    expect(queries[1].text).toBe('SELECT 2');
+    expect(queries[1].startLine).toBe(1);
+    expect(queries[1].startColumn).toBe(14); // After ";    "
+
+    expect(queries[2].text).toBe('SELECT 3');
+    expect(queries[2].startLine).toBe(1);
+    expect(queries[2].startColumn).toBe(28); // After second ";     "
+  });
+
+  it('should not include leading single-line comments in query start position', () => {
+    const content = `-- This is a comment
+SELECT 1;`;
+    const queries = parseQueries(content);
+    expect(queries).toHaveLength(1);
+
+    expect(queries[0].text).toContain('SELECT 1');
+    // Query should start at SELECT, not at the comment
+    expect(queries[0].startLine).toBe(2);
+    expect(queries[0].startColumn).toBe(1);
+  });
+
+  it('should not include leading multi-line comments in query start position', () => {
+    const content = `/* Multi-line
+comment here */
+SELECT 1;`;
+    const queries = parseQueries(content);
+    expect(queries).toHaveLength(1);
+
+    expect(queries[0].text).toContain('SELECT 1');
+    // Query should start at SELECT, not at the comment
+    expect(queries[0].startLine).toBe(3);
+    expect(queries[0].startColumn).toBe(1);
+  });
+
+  it('should handle inline comments without including them in start position', () => {
+    const content = `SELECT 1; -- comment
+SELECT 2;`;
+    const queries = parseQueries(content);
+    expect(queries).toHaveLength(2);
+
+    expect(queries[0].text).toContain('SELECT 1');
+    expect(queries[0].startLine).toBe(1);
+
+    expect(queries[1].text).toContain('SELECT 2');
+    // Second query should start at SELECT, not at the comment
+    expect(queries[1].startLine).toBe(2);
+    expect(queries[1].startColumn).toBe(1);
+  });
 });
 
 describe('findQueryAtCursor', () => {

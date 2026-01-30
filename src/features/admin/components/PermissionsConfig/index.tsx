@@ -35,6 +35,8 @@ export default function PermissionsConfig() {
     executePendingChanges,
     isExecuting,
     executionResults,
+    executionProgress,
+    currentExecutingChange,
   } = permissionsState;
 
   // Layer configurations with icons and privilege checks
@@ -330,6 +332,8 @@ export default function PermissionsConfig() {
         changes={pendingChanges}
         isExecuting={isExecuting}
         executionResults={executionResults}
+        executionProgress={executionProgress}
+        currentExecutingChange={currentExecutingChange}
         onClose={toggleReviewPanel}
         onExecute={executePendingChanges}
         onRemoveChange={removePendingChange}

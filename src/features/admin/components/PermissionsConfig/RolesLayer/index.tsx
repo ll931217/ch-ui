@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import RoleEditor from "./RoleEditor";
+import { ListSkeleton } from "../LoadingSkeletons/ListSkeleton";
 
 interface RoleData {
   name: string;
@@ -112,7 +113,7 @@ export default function RolesLayer({ onAddChange }: RolesLayerProps) {
           </p>
         </div>
         {canCreate && (
-          <Button onClick={handleCreateRole} className="gap-2">
+          <Button onClick={handleCreateRole} className="gap-2" disabled={loading}>
             <Plus className="w-4 h-4" />
             Create Role
           </Button>
@@ -127,14 +128,15 @@ export default function RolesLayer({ onAddChange }: RolesLayerProps) {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
+          disabled={loading}
         />
       </div>
 
       {/* Roles table */}
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground">
-          Loading roles...
-        </div>
+        <Card>
+          <ListSkeleton rows={4} columns={3} />
+        </Card>
       ) : filteredRoles.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           {searchTerm ? "No roles found" : "No roles available"}

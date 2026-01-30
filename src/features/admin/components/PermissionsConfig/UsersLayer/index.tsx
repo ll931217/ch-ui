@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import UserEditor from "./UserEditor";
+import { ListSkeleton } from "../LoadingSkeletons/ListSkeleton";
 
 interface UsersLayerProps {
   onAddChange: (change: any) => void;
@@ -113,7 +114,11 @@ export default function UsersLayer({ onAddChange }: UsersLayerProps) {
           </p>
         </div>
         {canCreate && (
-          <Button onClick={() => handleEditUser({} as UserData)} className="gap-2">
+          <Button
+            onClick={() => handleEditUser({} as UserData)}
+            className="gap-2"
+            disabled={loading}
+          >
             <UserPlus className="w-4 h-4" />
             Create User
           </Button>
@@ -128,14 +133,15 @@ export default function UsersLayer({ onAddChange }: UsersLayerProps) {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
+          disabled={loading}
         />
       </div>
 
       {/* Users table */}
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground">
-          Loading users...
-        </div>
+        <Card>
+          <ListSkeleton rows={5} columns={4} />
+        </Card>
       ) : filteredUsers.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           {searchTerm ? "No users found" : "No users available"}

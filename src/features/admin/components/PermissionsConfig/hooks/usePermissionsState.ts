@@ -23,6 +23,8 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResults, setExecutionResults] = useState<ChangeExecutionResult[]>([]);
+  const [executionProgress, setExecutionProgress] = useState(0);
+  const [currentExecutingChange, setCurrentExecutingChange] = useState<PendingChange | null>(null);
 
   /**
    * Initialize audit log table on mount
@@ -152,6 +154,8 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
 
     setIsExecuting(true);
     setExecutionResults([]);
+    setExecutionProgress(0);
+    setCurrentExecutingChange(null);
 
     const results: ChangeExecutionResult[] = [];
     const loadingToast = toast.loading(
@@ -163,7 +167,11 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
 
     try {
       // Execute changes sequentially
-      for (const change of pendingChanges) {
+      for (let i = 0; i < pendingChanges.length; i++) {
+        const change = pendingChanges[i];
+        setExecutionProgress(i + 1);
+        setCurrentExecutingChange(change);
+
         const result = await executeChange(change.id);
         results.push(result);
 
@@ -217,6 +225,8 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
       return results;
     } finally {
       setIsExecuting(false);
+      setExecutionProgress(0);
+      setCurrentExecutingChange(null);
     }
   }, [pendingChanges, executeChange, toast]);
 
@@ -227,6 +237,8 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
     isReviewPanelOpen,
     isExecuting,
     executionResults,
+    executionProgress,
+    currentExecutingChange,
     // Actions
     addPendingChange,
     removePendingChange,

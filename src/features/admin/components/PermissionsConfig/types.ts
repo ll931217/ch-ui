@@ -82,6 +82,12 @@ export interface PermissionsState {
 
   /** Execution results */
   executionResults: ChangeExecutionResult[];
+
+  /** Current execution progress (1-based index) */
+  executionProgress: number;
+
+  /** Current change being executed */
+  currentExecutingChange: PendingChange | null;
 }
 
 /**

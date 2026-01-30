@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import QuotaEditor from "./QuotaEditor";
+import { ListSkeleton } from "../LoadingSkeletons/ListSkeleton";
 
 interface QuotaData {
   name: string;
@@ -142,7 +143,7 @@ export default function QuotasLayer({ onAddChange }: QuotasLayerProps) {
           </p>
         </div>
         {canCreate && (
-          <Button onClick={handleCreateQuota} className="gap-2">
+          <Button onClick={handleCreateQuota} className="gap-2" disabled={loading}>
             <Plus className="w-4 h-4" />
             Create Quota
           </Button>
@@ -157,14 +158,15 @@ export default function QuotasLayer({ onAddChange }: QuotasLayerProps) {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
+          disabled={loading}
         />
       </div>
 
       {/* Quotas table */}
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground">
-          Loading quotas...
-        </div>
+        <Card>
+          <ListSkeleton rows={4} columns={5} />
+        </Card>
       ) : filteredQuotas.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           {searchTerm ? "No quotas found" : "No quotas configured"}

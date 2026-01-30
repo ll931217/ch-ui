@@ -6,12 +6,15 @@ import DiffView from "./DiffView";
 import SqlPreview from "./SqlPreview";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ProgressIndicator } from "../LoadingSkeletons/ProgressIndicator";
 
 interface ReviewPanelProps {
   isOpen: boolean;
   changes: PendingChange[];
   isExecuting: boolean;
   executionResults: ChangeExecutionResult[];
+  executionProgress?: number;
+  currentExecutingChange?: PendingChange | null;
   onClose: () => void;
   onExecute: () => void;
   onRemoveChange: (changeId: string) => void;
@@ -23,6 +26,8 @@ export default function ReviewPanel({
   changes,
   isExecuting,
   executionResults,
+  executionProgress = 0,
+  currentExecutingChange = null,
   onClose,
   onExecute,
   onRemoveChange,
@@ -44,10 +49,21 @@ export default function ReviewPanel({
             <h2 className="text-xl font-medium">Review Pending Changes</h2>
             <Badge variant="secondary">{changes.length} changes</Badge>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={isExecuting}>
             <X className="w-4 h-4" />
           </Button>
         </div>
+
+        {/* Execution progress */}
+        {isExecuting && executionProgress > 0 && (
+          <div className="px-6 py-4 border-b bg-muted/30">
+            <ProgressIndicator
+              current={executionProgress}
+              total={changes.length}
+              message={currentExecutingChange?.description}
+            />
+          </div>
+        )}
 
         {/* Execution results */}
         {hasResults && (

@@ -7,6 +7,7 @@ import SqlPreview from "./SqlPreview";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ProgressIndicator } from "../LoadingSkeletons/ProgressIndicator";
+import { useEffect } from "react";
 
 interface ReviewPanelProps {
   isOpen: boolean;
@@ -33,6 +34,28 @@ export default function ReviewPanel({
   onRemoveChange,
   onClearAll,
 }: ReviewPanelProps) {
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape to close
+      if (e.key === "Escape" && !isExecuting) {
+        e.preventDefault();
+        onClose();
+      }
+
+      // Ctrl+Enter to execute
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !isExecuting && changes.length > 0) {
+        e.preventDefault();
+        onExecute();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isExecuting, changes.length, onClose, onExecute]);
+
   if (!isOpen) return null;
 
   const hasResults = executionResults.length > 0;
@@ -139,29 +162,39 @@ export default function ReviewPanel({
 
         {/* Footer */}
         {changes.length > 0 && (
-          <div className="flex items-center justify-between p-6 border-t bg-muted/30">
-            <Button
-              variant="outline"
-              onClick={onClearAll}
-              className="gap-2"
-              disabled={isExecuting}
-            >
-              <Trash2 className="w-4 h-4" />
-              Clear All
-            </Button>
+          <div className="p-6 border-t bg-muted/30 space-y-3">
+            {/* Keyboard shortcuts hint */}
+            <div className="text-xs text-muted-foreground text-center">
+              Press <kbd className="px-1.5 py-0.5 bg-muted border rounded text-xs">Esc</kbd> to close,{" "}
+              <kbd className="px-1.5 py-0.5 bg-muted border rounded text-xs">Ctrl</kbd> +{" "}
+              <kbd className="px-1.5 py-0.5 bg-muted border rounded text-xs">Enter</kbd> to execute
+            </div>
 
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={onClose} disabled={isExecuting}>
-                Cancel
-              </Button>
+            {/* Action buttons */}
+            <div className="flex items-center justify-between">
               <Button
-                onClick={onExecute}
-                disabled={isExecuting || changes.length === 0}
+                variant="outline"
+                onClick={onClearAll}
                 className="gap-2"
+                disabled={isExecuting}
               >
-                <Play className="w-4 h-4" />
-                {isExecuting ? "Executing..." : `Execute ${changes.length} Change(s)`}
+                <Trash2 className="w-4 h-4" />
+                Clear All
               </Button>
+
+              <div className="flex items-center gap-3">
+                <Button variant="outline" onClick={onClose} disabled={isExecuting}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={onExecute}
+                  disabled={isExecuting || changes.length === 0}
+                  className="gap-2"
+                >
+                  <Play className="w-4 h-4" />
+                  {isExecuting ? "Executing..." : `Execute ${changes.length} Change(s)`}
+                </Button>
+              </div>
             </div>
           </div>
         )}

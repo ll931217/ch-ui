@@ -66,7 +66,6 @@ export default function UsersLayer({ onAddChange }: UsersLayerProps) {
             grantees_any,
             grantees_list
           FROM system.users
-          WHERE storage = 'local directory'
           ORDER BY name
         `;
 
@@ -91,7 +90,7 @@ export default function UsersLayer({ onAddChange }: UsersLayerProps) {
   }, [loadPreferences]);
 
   // Extract unique auth types for filter dropdown
-  const authTypes = Array.from(new Set(users.map((u) => u.auth_type).filter(Boolean)));
+  const authTypes = Array.from(new Set(users.flatMap((u) => u.auth_type || [])));
 
   // Filter users using enhanced search
   const filteredUsers = filterItems(users, searchTerm, {

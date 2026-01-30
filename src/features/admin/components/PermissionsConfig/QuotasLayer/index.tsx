@@ -72,7 +72,6 @@ export default function QuotasLayer({ onAddChange }: QuotasLayerProps) {
             max_read_bytes,
             max_execution_time
           FROM system.quotas
-          WHERE storage = 'local directory'
           ORDER BY name
         `;
 

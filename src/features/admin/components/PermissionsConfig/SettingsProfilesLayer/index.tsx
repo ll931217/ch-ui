@@ -54,7 +54,6 @@ export default function SettingsProfilesLayer({
             name,
             id
           FROM system.settings_profiles
-          WHERE storage = 'local directory'
           ORDER BY name
         `;
 

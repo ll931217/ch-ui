@@ -57,7 +57,6 @@ export default function RowPoliciesLayer({ onAddChange }: RowPoliciesLayerProps)
             is_restrictive,
             select_filter as filter_using
           FROM system.row_policies
-          WHERE storage = 'local directory'
           ORDER BY database, table, name
         `;
 

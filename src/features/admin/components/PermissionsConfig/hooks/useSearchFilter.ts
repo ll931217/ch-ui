@@ -93,7 +93,11 @@ export function useSearchFilter() {
 
       // Apply auth type filter
       if (mergedOptions.authType) {
-        filtered = filtered.filter((item) => item.auth_type === mergedOptions.authType);
+        filtered = filtered.filter((item) =>
+          Array.isArray(item.auth_type)
+            ? item.auth_type.includes(mergedOptions.authType)
+            : item.auth_type === mergedOptions.authType
+        );
       }
 
       // Apply search term

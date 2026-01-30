@@ -1,11 +1,13 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+  ComboboxCollection,
+} from "@/components/ui/combobox";
 import { PermissionScope, ScopeType } from "./permissions";
 
 interface ScopeSelectorProps {
@@ -18,6 +20,12 @@ interface ScopeSelectorProps {
   compact?: boolean;
 }
 
+interface ScopeOption {
+  value: string;
+  label: string;
+  scope: PermissionScope;
+}
+
 const ScopeSelector: React.FC<ScopeSelectorProps> = ({
   scope,
   onChange,
@@ -27,9 +35,12 @@ const ScopeSelector: React.FC<ScopeSelectorProps> = ({
   disabled = false,
   compact = false,
 }) => {
+  const [inputValue, setInputValue] = useState("");
+  const [open, setOpen] = useState(false);
+
   // Build scope options
   const scopeOptions = useMemo(() => {
-    const options: { value: string; label: string; scope: PermissionScope }[] = [];
+    const options: ScopeOption[] = [];
 
     // Global scope
     if (allowedScopes.includes("global")) {
@@ -68,6 +79,15 @@ const ScopeSelector: React.FC<ScopeSelectorProps> = ({
     return options;
   }, [allowedScopes, databases, tables]);
 
+  // Filter options based on input
+  const filteredOptions = useMemo(() => {
+    if (!inputValue) return scopeOptions;
+    const query = inputValue.toLowerCase();
+    return scopeOptions.filter((opt) =>
+      opt.label.toLowerCase().includes(query)
+    );
+  }, [scopeOptions, inputValue]);
+
   // Get current value string
   const currentValue = useMemo(() => {
     if (scope.type === "global") return "*.*";
@@ -78,10 +98,14 @@ const ScopeSelector: React.FC<ScopeSelectorProps> = ({
     return "*.*";
   }, [scope]);
 
-  const handleChange = (value: string) => {
+  const handleValueChange = (value: string | null) => {
+    if (!value) return;
+
     const option = scopeOptions.find((opt) => opt.value === value);
     if (option) {
       onChange(option.scope);
+      setInputValue(""); // Clear search after selection
+      setOpen(false);
     }
   };
 
@@ -104,26 +128,39 @@ const ScopeSelector: React.FC<ScopeSelectorProps> = ({
   }
 
   return (
-    <Select
+    <Combobox
       value={currentValue}
-      onValueChange={handleChange}
+      onValueChange={handleValueChange}
+      open={open}
+      onOpenChange={setOpen}
       disabled={disabled}
+      items={scopeOptions}
     >
-      <SelectTrigger className={compact ? "h-7 w-[140px] text-xs" : "w-[180px]"}>
-        <SelectValue placeholder="Select scope" />
-      </SelectTrigger>
-      <SelectContent>
-        {scopeOptions.map((option) => (
-          <SelectItem
-            key={option.value}
-            value={option.value}
-            className={compact ? "text-xs" : ""}
-          >
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      <ComboboxCollection items={scopeOptions} />
+      <ComboboxInput
+        value={inputValue}
+        onValueChange={setInputValue}
+        placeholder={currentValue}
+        className={compact ? "h-7 w-[140px] text-xs [&_input]:focus:ring-0 [&_input]:focus:ring-offset-0" : "w-[180px] [&_input]:focus:ring-0 [&_input]:focus:ring-offset-0"}
+        showTrigger
+        showClear={inputValue.length > 0}
+      >
+        <ComboboxContent zIndex={100}>
+          <ComboboxList>
+            {filteredOptions.map((option) => (
+              <ComboboxItem
+                key={option.value}
+                value={option.value}
+                className={compact ? "text-xs" : ""}
+              >
+                {option.label}
+              </ComboboxItem>
+            ))}
+          </ComboboxList>
+          <ComboboxEmpty>No scopes found</ComboboxEmpty>
+        </ComboboxContent>
+      </ComboboxInput>
+    </Combobox>
   );
 };
 

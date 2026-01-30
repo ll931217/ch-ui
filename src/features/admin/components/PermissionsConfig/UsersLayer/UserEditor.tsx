@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { GrantedPermission } from "../../CreateUser/PrivilegesSection/permission
 import PermissionTree from "../../CreateUser/PrivilegesSection/PermissionTree";
 import useAppStore from "@/store";
 import { useSqlGenerator } from "../hooks/useSqlGenerator";
+import { useGrants } from "../hooks/useGrants";
 
 interface UserEditorProps {
   user: UserData | null;
@@ -36,21 +37,32 @@ export default function UserEditor({ user, onClose, onAddChange }: UserEditorPro
   const [hostNames, setHostNames] = useState(user?.host_names?.join(", ") || "");
   const [grantedPermissions, setGrantedPermissions] = useState<GrantedPermission[]>([]);
 
-  const databases = dataBaseExplorer.map((db) => db.name);
-  const tables = new Map(
-    dataBaseExplorer.map((db) => [
-      db.name,
-      db.children.map((t) => t.name),
-    ])
+  // Memoize databases and tables to prevent unnecessary re-renders
+  const databases = useMemo(
+    () => dataBaseExplorer.map((db) => db.name),
+    [dataBaseExplorer]
+  );
+  const tables = useMemo(
+    () => new Map(
+      dataBaseExplorer.map((db) => [
+        db.name,
+        db.children.map((t) => t.name),
+      ])
+    ),
+    [dataBaseExplorer]
   );
 
   // Fetch current user grants if editing
+  const { grants, loading: grantsLoading } = useGrants({
+    userName: !isNewUser && user?.name ? user.name : undefined,
+  });
+
+  // Update granted permissions when grants are loaded
   useEffect(() => {
-    if (!isNewUser && user?.name) {
-      // TODO: Fetch user's current grants from system.grants
-      // and convert them to GrantedPermission[] format
+    if (!isNewUser && grants.length > 0) {
+      setGrantedPermissions(grants);
     }
-  }, [user, isNewUser]);
+  }, [grants, isNewUser]);
 
   const handleSave = () => {
     if (!username.trim()) {

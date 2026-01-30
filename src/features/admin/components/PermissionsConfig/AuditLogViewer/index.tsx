@@ -39,10 +39,11 @@ import { toast } from "sonner";
  * Audit Log Viewer component for reviewing permission changes
  */
 export default function AuditLogViewer() {
-  const { queryAuditLogs, getAuditStats } = useAuditLog();
+  const { queryAuditLogs, getAuditStats, initializeAuditTable } = useAuditLog();
 
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
 
   // Filters
@@ -66,8 +67,15 @@ export default function AuditLogViewer() {
   /**
    * Load audit logs with current filters
    */
-  const loadLogs = async () => {
-    setIsLoading(true);
+  const loadLogs = async (showLoading = true) => {
+    if (!isInitialized && showLoading) {
+      // Skip if not initialized yet (will be loaded after initialization)
+      return;
+    }
+
+    if (showLoading) {
+      setIsLoading(true);
+    }
     try {
       const filters: AuditLogFilters = {
         limit: 100,
@@ -87,7 +95,9 @@ export default function AuditLogViewer() {
       toast.error("Failed to load audit logs");
       console.error("Error loading audit logs:", error);
     } finally {
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -104,11 +114,29 @@ export default function AuditLogViewer() {
   };
 
   /**
-   * Initial load
+   * Initialize table on mount
    */
   useEffect(() => {
-    loadLogs();
-    loadStats();
+    const initialize = async () => {
+      setIsLoading(true);
+      try {
+        const success = await initializeAuditTable();
+        if (success) {
+          setIsInitialized(true);
+          await Promise.all([loadLogs(false), loadStats()]);
+        } else {
+          toast.error("Failed to initialize audit log table");
+        }
+      } catch (error) {
+        console.error("Error during audit log initialization:", error);
+        toast.error("Failed to initialize audit log");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initialize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -131,8 +159,32 @@ export default function AuditLogViewer() {
         <p className="text-gray-400">Review all permission changes and their history</p>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Initialization Error State */}
+      {!isInitialized && !isLoading && (
+        <Card>
+          <CardContent className="py-8">
+            <div className="flex flex-col items-center justify-center text-center">
+              <XCircle className="w-12 h-12 text-red-500 mb-4" aria-hidden="true" />
+              <h3 className="text-lg font-medium mb-2">Failed to Initialize Audit Log</h3>
+              <p className="text-gray-400 mb-4">
+                The audit log table could not be created or accessed. Please check your database permissions.
+              </p>
+              <Button
+                onClick={() => window.location.reload()}
+                variant="outline"
+              >
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Main Content - Only show when initialized */}
+      {isInitialized && (
+        <>
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Changes</CardTitle>
@@ -198,12 +250,12 @@ export default function AuditLogViewer() {
               <label htmlFor="operation-filter" className="text-sm font-medium">
                 Operation
               </label>
-              <Select value={operationFilter} onValueChange={setOperationFilter}>
+              <Select value={operationFilter || "all"} onValueChange={(val) => setOperationFilter(val === "all" ? "" : val)}>
                 <SelectTrigger id="operation-filter">
                   <SelectValue placeholder="All operations" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All operations</SelectItem>
+                  <SelectItem value="all">All operations</SelectItem>
                   <SelectItem value="GRANT">GRANT</SelectItem>
                   <SelectItem value="REVOKE">REVOKE</SelectItem>
                   <SelectItem value="CREATE">CREATE</SelectItem>
@@ -217,12 +269,12 @@ export default function AuditLogViewer() {
               <label htmlFor="entity-type-filter" className="text-sm font-medium">
                 Entity Type
               </label>
-              <Select value={entityTypeFilter} onValueChange={setEntityTypeFilter}>
+              <Select value={entityTypeFilter || "all"} onValueChange={(val) => setEntityTypeFilter(val === "all" ? "" : val)}>
                 <SelectTrigger id="entity-type-filter">
                   <SelectValue placeholder="All entity types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All entity types</SelectItem>
+                  <SelectItem value="all">All entity types</SelectItem>
                   <SelectItem value="USER">USER</SelectItem>
                   <SelectItem value="ROLE">ROLE</SelectItem>
                   <SelectItem value="QUOTA">QUOTA</SelectItem>
@@ -276,7 +328,7 @@ export default function AuditLogViewer() {
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={loadLogs} disabled={isLoading}>
+            <Button onClick={() => loadLogs()} disabled={isLoading}>
               <Search className="w-4 h-4 mr-2" aria-hidden="true" />
               Apply Filters
             </Button>
@@ -473,6 +525,8 @@ export default function AuditLogViewer() {
             </CardContent>
           </Card>
         </div>
+      )}
+        </>
       )}
     </div>
   );

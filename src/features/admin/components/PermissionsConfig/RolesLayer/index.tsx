@@ -50,7 +50,6 @@ export default function RolesLayer({ onAddChange }: RolesLayerProps) {
             name,
             id
           FROM system.roles
-          WHERE storage = 'local directory'
           ORDER BY name
         `;
 

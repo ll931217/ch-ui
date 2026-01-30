@@ -148,6 +148,13 @@ export function useAuditLog() {
           sessionId: "", // Would need to be obtained from session management
         };
 
+        // Helper to escape SQL strings
+        const escapeString = (str: string) => str.replace(/'/g, "''").replace(/\\/g, "\\\\");
+
+        // Helper to format array for ClickHouse
+        const formatArray = (arr: string[]) =>
+          `[${arr.map(s => `'${escapeString(s)}'`).join(',')}]`;
+
         const insertSQL = `
           INSERT INTO ch_ui_audit_log (
             id,
@@ -165,39 +172,24 @@ export function useAuditLog() {
             client_ip,
             session_id
           ) VALUES (
-            {id:String},
-            {timestamp:DateTime64(3)},
-            {username:String},
-            {operation:String},
-            {entity_type:String},
-            {entity_name:String},
-            {description:String},
-            {sql_statements:Array(String)},
-            {before_state:String},
-            {after_state:String},
-            {success:UInt8},
-            {error_message:String},
-            {client_ip:String},
-            {session_id:String}
+            '${escapeString(entry.id)}',
+            '${entry.timestamp.toISOString()}',
+            '${escapeString(entry.username)}',
+            '${escapeString(entry.operation)}',
+            '${escapeString(entry.entityType)}',
+            '${escapeString(entry.entityName)}',
+            '${escapeString(entry.description)}',
+            ${formatArray(entry.sqlStatements)},
+            '${escapeString(JSON.stringify(entry.beforeState || {}))}',
+            '${escapeString(JSON.stringify(entry.afterState || {}))}',
+            ${entry.success ? 1 : 0},
+            '${escapeString(entry.errorMessage || "")}',
+            '${escapeString(entry.clientIp || "")}',
+            '${escapeString(entry.sessionId || "")}'
           )
         `;
 
-        await runQuery(insertSQL, {
-          id: entry.id,
-          timestamp: entry.timestamp.toISOString(),
-          username: entry.username,
-          operation: entry.operation,
-          entity_type: entry.entityType,
-          entity_name: entry.entityName,
-          description: entry.description,
-          sql_statements: entry.sqlStatements,
-          before_state: JSON.stringify(entry.beforeState || {}),
-          after_state: JSON.stringify(entry.afterState || {}),
-          success: entry.success ? 1 : 0,
-          error_message: entry.errorMessage || "",
-          client_ip: entry.clientIp || "",
-          session_id: entry.sessionId || "",
-        });
+        await runQuery(insertSQL);
       } catch (error) {
         // Don't throw - logging failure shouldn't break the main operation
         console.error("Failed to log audit entry:", error);
@@ -215,28 +207,31 @@ export function useAuditLog() {
         let whereClause = "WHERE 1=1";
 
         if (filters.username) {
-          whereClause += ` AND username = {username:String}`;
+          whereClause += ` AND username = '${filters.username.replace(/'/g, "''")}'`;
         }
 
         if (filters.operation) {
-          whereClause += ` AND operation = {operation:String}`;
+          whereClause += ` AND operation = '${filters.operation.replace(/'/g, "''")}'`;
         }
 
         if (filters.entityType) {
-          whereClause += ` AND entity_type = {entity_type:String}`;
+          whereClause += ` AND entity_type = '${filters.entityType.replace(/'/g, "''")}'`;
         }
 
         if (filters.success !== undefined) {
-          whereClause += ` AND success = {success:UInt8}`;
+          whereClause += ` AND success = ${filters.success ? 1 : 0}`;
         }
 
         if (filters.startDate) {
-          whereClause += ` AND timestamp >= {start_date:DateTime64(3)}`;
+          whereClause += ` AND timestamp >= '${filters.startDate.toISOString()}'`;
         }
 
         if (filters.endDate) {
-          whereClause += ` AND timestamp <= {end_date:DateTime64(3)}`;
+          whereClause += ` AND timestamp <= '${filters.endDate.toISOString()}'`;
         }
+
+        const limit = filters.limit || 100;
+        const offset = filters.offset || 0;
 
         const querySQL = `
           SELECT
@@ -257,23 +252,11 @@ export function useAuditLog() {
           FROM ch_ui_audit_log
           ${whereClause}
           ORDER BY timestamp DESC
-          LIMIT {limit:UInt32}
-          OFFSET {offset:UInt32}
+          LIMIT ${limit}
+          OFFSET ${offset}
         `;
 
-        const params: any = {
-          limit: filters.limit || 100,
-          offset: filters.offset || 0,
-        };
-
-        if (filters.username) params.username = filters.username;
-        if (filters.operation) params.operation = filters.operation;
-        if (filters.entityType) params.entity_type = filters.entityType;
-        if (filters.success !== undefined) params.success = filters.success ? 1 : 0;
-        if (filters.startDate) params.start_date = filters.startDate.toISOString();
-        if (filters.endDate) params.end_date = filters.endDate.toISOString();
-
-        const result = await runQuery(querySQL, params);
+        const result = await runQuery(querySQL);
 
         // Parse the result into AuditLogEntry objects
         const entries: AuditLogEntry[] = (result.rows || []).map((row: any) => ({

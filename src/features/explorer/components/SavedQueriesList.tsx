@@ -61,17 +61,22 @@ const SavedQueriesList: React.FC<SavedQueriesListProps> = ({
             filteredQueries.map((query) => (
               <div
                 key={query.id}
-                className="flex flex-col py-1 w-full"
+                className="text-xs cursor-pointer hover:bg-muted-foreground/10 rounded-md p-2 mb-1"
                 onClick={() => onQueryOpen(query)}
               >
-                <div className="text-xs text-muted-foreground cursor-pointer hover:bg-muted-foreground/10 rounded-md p-2 w-full flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="flex-1 truncate font-medium">
                     {query.name}
                   </span>
                   <span className="text-xs text-muted-foreground ml-2">
-                    {new Date(query.updated_at).toLocaleString()}
+                    {new Date(query.updatedAt).toLocaleString()}
                   </span>
                 </div>
+                {query.databaseName && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {query.databaseName}
+                  </div>
+                )}
               </div>
             ))
           ) : (

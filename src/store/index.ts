@@ -17,6 +17,12 @@ import { toast } from "sonner";
 import { appQueries } from "@/features/workspace/editor/appQueries";
 import { retryInitialization } from "@/features/workspace/editor/monacoConfig";
 import { useConnectionStore } from "@/store/connectionStore";
+import {
+  createSavedQuery,
+  getSavedQueriesByConnectionId,
+  updateSavedQuery as dbUpdateSavedQuery,
+  deleteSavedQuery as dbDeleteSavedQuery,
+} from "@/lib/db";
 
 const MAPPED_TABLE_TYPE: Record<string, string> = {"view": "view", "dictionary": "dictionary", "materializedview": "materialized_view"};
 
@@ -158,12 +164,6 @@ const buildConnectionUrl = (credential: Credential): string => {
   return baseUrl;
 };
 
-const escapeClickhouseString = (value: string): string =>
-  value
-    .replace(/\\/g, "\\\\") // Escape backslashes
-    .replace(/'/g, "''") // Escape single quotes
-    .replace(/\n/g, "\\n") // Escape newline characters
-    .replace(/\r/g, "\\r"); // Escape carriage returns
 
 /**
  * Zustand Store
@@ -788,13 +788,6 @@ const useAppStore = create<AppState>()(
         // =====================================================
         isAdmin: false,
         userPrivileges: null,
-        savedQueries: {
-          isSavedQueriesActive: false,
-          isCheckingStatus: false,
-          isActivating: false,
-          isDeactivating: false,
-          error: null,
-        },
 
         /**
          * Checks if the current user has admin privileges.
@@ -919,200 +912,24 @@ const useAppStore = create<AppState>()(
           }
         },
 
-        /**
-         * Checks if the saved queries table exists in ClickHouse.
-         */
-        checkSavedQueriesStatus: async (): Promise<boolean> => {
-          const { clickHouseClient, runQuery } = get();
-          if (!clickHouseClient) {
-            console.warn("checkSavedQueriesStatus: ClickHouse client is not initialized");
-            set((state) => ({
-              savedQueries: {
-                ...state.savedQueries,
-                isSavedQueriesActive: false,
-              },
-            }));
-            return false;
-          }
+        saveQuery: async (tabId: string, name: string, query: string) => {
+          const { updateTab } = get();
 
-          set((state) => ({
-            savedQueries: {
-              ...state.savedQueries,
-              isCheckingStatus: true,
-              error: null,
-            },
-          }));
           try {
-            const result = await runQuery(`
-              SELECT COUNT(*) as exists
-              FROM system.tables
-              WHERE database = 'CH_UI'
-              AND name = 'saved_queries'
-            `);
-            const response = result as SavedQueriesCheckResponse;
-            const isActive = response.data[0]?.exists > 0;
-            set((state) => ({
-              savedQueries: {
-                ...state.savedQueries,
-                isSavedQueriesActive: isActive,
-              },
-            }));
-            return isActive;
-          } catch (error) {
-            const errorMessage = `Failed to check saved queries status: ${error}`;
-            set((state) => ({
-              savedQueries: {
-                ...state.savedQueries,
-                isSavedQueriesActive: false,
-                error: errorMessage,
-              },
-            }));
-            console.error(errorMessage);
-            return false;
-          } finally {
-            set((state) => ({
-              savedQueries: {
-                ...state.savedQueries,
-                isCheckingStatus: false,
-              },
-            }));
-          }
-        },
-
-        /**
-         * Activates saved queries by creating the necessary database and table.
-         */
-        activateSavedQueries: async () => {
-          const { runQuery } = get();
-          set((state) => ({
-            savedQueries: {
-              ...state.savedQueries,
-              isActivating: true,
-              error: null,
-            },
-          }));
-          try {
-            // Run queries in sequence with proper error handling
-            await runQuery("CREATE DATABASE IF NOT EXISTS CH_UI").then(
-              async () => {
-                await runQuery(`
-                CREATE TABLE IF NOT EXISTS CH_UI.saved_queries (
-                  id String,
-                  name String,
-                  query String,
-                  created_at DateTime64(3),
-                  updated_at DateTime64(3),
-                  owner String,
-                  is_public Boolean DEFAULT false,
-                  connection_id String DEFAULT '',
-                  PRIMARY KEY (id)
-                ) ENGINE = MergeTree()
-                ORDER BY (id, created_at)
-                SETTINGS index_granularity = 8192
-              `);
-              }
-            );
-
-            // Verify the table was created successfully
-            const isActive = await get().checkSavedQueriesStatus();
-            if (!isActive) {
-              throw new ClickHouseError("Table creation verification failed");
+            // Get the active connection ID and selected database
+            const activeConnectionId = useConnectionStore.getState().activeConnectionId;
+            if (!activeConnectionId) {
+              throw new Error("No active connection");
             }
-            toast.success("Saved queries activated successfully");
-          } catch (error) {
-            const errorMessage = "Failed to activate saved queries";
-            set((state) => ({
-              savedQueries: {
-                ...state.savedQueries,
-                error: errorMessage,
-              },
-            }));
-            toast.error(errorMessage);
-            throw new ClickHouseError(errorMessage, error);
-          } finally {
-            set((state) => ({
-              savedQueries: {
-                ...state.savedQueries,
-                isActivating: false,
-              },
-            }));
-          }
-        },
+            const selectedDatabase = get().selectedDatabase || '';
 
-        /**
-         * Deactivates saved queries by dropping the saved queries table.
-         */
-        deactivateSavedQueries: async () => {
-          const { runQuery } = get();
-          set((state) => ({
-            savedQueries: {
-              ...state.savedQueries,
-              isDeactivating: true,
-              error: null,
-            },
-          }));
-          try {
-            await runQuery("DROP TABLE IF EXISTS CH_UI.saved_queries");
-            // Verify the table was dropped successfully
-            const isActive = await get().checkSavedQueriesStatus();
-            if (isActive) {
-              throw new ClickHouseError("Table deletion verification failed");
-            }
-            toast.success("Saved queries deactivated successfully");
-            return true;
-          } catch (error) {
-            const errorMessage = "Failed to deactivate saved queries";
-            set((state) => ({
-              savedQueries: {
-                ...state.savedQueries,
-                error: errorMessage,
-              },
-            }));
-            toast.error(errorMessage);
-            throw new ClickHouseError(errorMessage, error);
-          } finally {
-            set((state) => ({
-              savedQueries: {
-                ...state.savedQueries,
-                isDeactivating: false,
-              },
-            }));
-          }
-        },
-
-        saveQuery: async (
-          tabId: string,
-          name: string,
-          query: string,
-          isPublic: boolean = false
-        ) => {
-          const { clickHouseClient, updateTab } = get(); // Removed fetchSavedQueries since we'll use the trigger
-          if (!clickHouseClient) {
-            throw new Error("ClickHouse client is not initialized");
-          }
-
-          try {
-            const safeName = escapeClickhouseString(name);
-            const safeQuery = escapeClickhouseString(query);
-
-            // Get the active connection ID
-            const activeConnectionId = useConnectionStore.getState().activeConnectionId || '';
-
-            const insertQuery = `
-              INSERT INTO CH_UI.saved_queries (id, name, query, created_at, updated_at, owner, is_public, connection_id)
-              VALUES (
-                '${tabId}',
-                '${safeName}',
-                '${safeQuery}',
-                now(),
-                now(),
-                currentUser(),
-                ${isPublic},
-                '${activeConnectionId}'
-              )
-            `;
-
-            await clickHouseClient.command({ query: insertQuery });
+            // Create the saved query in IndexedDB
+            await createSavedQuery({
+              name,
+              query,
+              connectionId: activeConnectionId,
+              databaseName: selectedDatabase,
+            });
 
             await updateTab(tabId, {
               title: name,
@@ -1129,68 +946,35 @@ const useAppStore = create<AppState>()(
           } catch (error: any) {
             console.error("Failed to save query:", error);
             toast.error(`Failed to save query: ${error.message}`);
-            throw new ClickHouseError("Failed to save query", error);
+            throw error;
           }
         },
 
-        updateSavedQuery: async (tabId: string, query: string) => {
-          const { clickHouseClient, updateTab, getTabById, runQuery } = get();
-          if (!clickHouseClient) {
-            throw new Error("ClickHouse client is not initialized");
-          }
+        updateSavedQuery: async (id: string, name: string, query: string) => {
           try {
-            const tab = getTabById(tabId);
-            if (!tab || !tab.title) {
-              throw new Error(
-                "Tab is not a saved query or queryName is missing"
-              );
-            }
-            const name = tab.title;
+            // Update the saved query in IndexedDB
+            await dbUpdateSavedQuery(id, { name, query });
 
-            const safeName = escapeClickhouseString(name);
-            const safeQuery = escapeClickhouseString(query);
-
-            const updateQuery = `
-              ALTER TABLE CH_UI.saved_queries
-              UPDATE
-                name = '${safeName}',
-                query = '${safeQuery}',
-                updated_at = now()
-              WHERE id = '${tabId}'
-            `;
-
-            await runQuery(updateQuery);
-
-            await updateTab(tabId, {
-              title: tab.title,
-              content: query,
-            });
-
-            // Increment the trigger to force a refresh
+            // Trigger refresh of saved queries
             set((state) => ({
               updatedSavedQueriesTrigger: Date.now().toString(),
             }));
 
-            toast.success(`Query "${tab.title}" updated successfully!`);
+            toast.success(`Query "${name}" updated successfully!`);
           } catch (error: any) {
             console.error("Failed to update query:", error);
             toast.error(`Failed to update query: ${error.message}`);
-            throw new ClickHouseError("Failed to update query", error);
+            throw error;
           }
         },
 
         deleteSavedQuery: async (id: string) => {
-          const { clickHouseClient, removeTab } = get();
-          if (!clickHouseClient) {
-            throw new Error("ClickHouse client is not initialized");
-          }
+          const { removeTab } = get();
           try {
-            await clickHouseClient.command({
-              query: `ALTER TABLE CH_UI.saved_queries DELETE WHERE id = '${id}'`,
-            });
+            await dbDeleteSavedQuery(id);
             await removeTab(id);
 
-            // Increment the trigger to force a refresh
+            // Trigger refresh of saved queries
             set((state) => ({
               updatedSavedQueriesTrigger: Date.now().toString(),
             }));
@@ -1199,35 +983,20 @@ const useAppStore = create<AppState>()(
           } catch (error: any) {
             console.error("Failed to delete query:", error);
             toast.error(`Failed to delete query: ${error.message}`);
-            throw new ClickHouseError("Failed to delete query", error);
+            throw error;
           }
         },
 
-        fetchSavedQueries: async (id?) => {
-          const { clickHouseClient } = get();
-          if (!clickHouseClient) {
-            throw new Error("ClickHouse client is not initialized");
-          }
+        fetchSavedQueries: async (): Promise<SavedQuery[]> => {
           try {
-            let query;
-
             // Get the active connection ID
-            const activeConnectionId = useConnectionStore.getState().activeConnectionId || '';
-
-            if (id) {
-              query = `SELECT * FROM CH_UI.saved_queries WHERE id = '${id}'`;
-            } else {
-              // Filter by connection_id if we have an active connection
-              if (activeConnectionId) {
-                query = `SELECT * FROM CH_UI.saved_queries WHERE connection_id = '${activeConnectionId}' ORDER BY updated_at DESC`;
-              } else {
-                // If no active connection, show all queries (for backward compatibility)
-                query = appQueries.getSavedQueries.query;
-              }
+            const activeConnectionId = useConnectionStore.getState().activeConnectionId;
+            if (!activeConnectionId) {
+              return [];
             }
-            const result = await clickHouseClient.query({ query });
-            const jsonResult = (await result.json()) as { data: SavedQuery[] };
-            return jsonResult.data;
+
+            // Fetch saved queries from IndexedDB for the active connection
+            return await getSavedQueriesByConnectionId(activeConnectionId);
           } catch (error: any) {
             console.error("Failed to fetch saved queries:", error);
             toast.error(`Failed to fetch saved queries: ${error.message}`);

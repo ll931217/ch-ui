@@ -8,12 +8,16 @@ import {
   ConnectionDisplay,
   ExportData,
   ExportedConnection,
+  ExportedSavedQuery,
   createConnection,
   getConnectionById,
   getAllConnections,
   updateConnection,
   deleteConnection as dbDeleteConnection,
   setDefaultConnection,
+  getSavedQueriesByConnectionId,
+  createSavedQuery,
+  deleteSavedQueriesByConnectionId,
 } from "@/lib/db";
 
 interface ConnectionState {
@@ -21,9 +25,12 @@ interface ConnectionState {
   activeConnectionId: string | null;
   isLoading: boolean;
   error: string | null;
+  databasesByConnection: Record<string, string[]>;
 
   // Actions
   loadConnections: () => Promise<void>;
+  cacheDatabasesForConnection: (connectionId: string, databases: string[]) => void;
+  getDatabasesForConnection: (connectionId: string) => string[];
   saveConnection: (connection: {
     name: string;
     url: string;
@@ -92,6 +99,20 @@ export const useConnectionStore = create<ConnectionState>()(
       activeConnectionId: null,
       isLoading: false,
       error: null,
+      databasesByConnection: {},
+
+  cacheDatabasesForConnection: (connectionId, databases) => {
+    set((state) => ({
+      databasesByConnection: {
+        ...state.databasesByConnection,
+        [connectionId]: databases,
+      },
+    }));
+  },
+
+  getDatabasesForConnection: (connectionId) => {
+    return get().databasesByConnection[connectionId] || [];
+  },
 
   loadConnections: async () => {
     set({ isLoading: true, error: null });
@@ -206,6 +227,10 @@ export const useConnectionStore = create<ConnectionState>()(
         return false;
       }
 
+      // Delete associated saved queries first (cascade delete)
+      await deleteSavedQueriesByConnectionId(id);
+
+      // Then delete the connection
       await dbDeleteConnection(id);
 
       // Clear active connection if it was deleted
@@ -253,6 +278,7 @@ export const useConnectionStore = create<ConnectionState>()(
   exportConnections: async (connectionIds, includePasswords) => {
     try {
       const connections: ExportedConnection[] = [];
+      const savedQueries: Record<string, ExportedSavedQuery[]> = {};
 
       for (const id of connectionIds) {
         const conn = await getConnectionById(id);
@@ -269,12 +295,23 @@ export const useConnectionStore = create<ConnectionState>()(
           isDistributed: conn.isDistributed,
           clusterName: conn.clusterName,
         });
+
+        // Fetch saved queries for this connection
+        const queries = await getSavedQueriesByConnectionId(id);
+        if (queries.length > 0) {
+          savedQueries[conn.name] = queries.map((q) => ({
+            name: q.name,
+            query: q.query,
+            databaseName: q.databaseName,
+          }));
+        }
       }
 
       const exportData: ExportData = {
-        version: "1.0",
+        version: "2.0",
         exportedAt: new Date().toISOString(),
         connections,
+        savedQueries: Object.keys(savedQueries).length > 0 ? savedQueries : undefined,
       };
 
       const jsonString = JSON.stringify(exportData, null, 2);
@@ -298,9 +335,12 @@ export const useConnectionStore = create<ConnectionState>()(
       let success = 0;
       let failed = 0;
 
+      // Map of connection names to new IDs for query association
+      const connectionNameToIdMap: Record<string, string> = {};
+
       for (const conn of data.connections) {
         try {
-          await get().saveConnection({
+          const savedConn = await get().saveConnection({
             name: conn.name,
             url: conn.url,
             username: conn.username,
@@ -311,9 +351,34 @@ export const useConnectionStore = create<ConnectionState>()(
             isDistributed: conn.isDistributed,
             clusterName: conn.clusterName,
           });
+
+          if (savedConn) {
+            connectionNameToIdMap[conn.name] = savedConn.id;
+          }
           success++;
         } catch {
           failed++;
+        }
+      }
+
+      // Import saved queries if present (v2.0 format)
+      if (data.savedQueries && data.version === "2.0") {
+        for (const [connectionName, queries] of Object.entries(data.savedQueries)) {
+          const connectionId = connectionNameToIdMap[connectionName];
+          if (!connectionId) continue;
+
+          for (const query of queries) {
+            try {
+              await createSavedQuery({
+                name: query.name,
+                query: query.query,
+                connectionId,
+                databaseName: query.databaseName,
+              });
+            } catch (err) {
+              console.error(`Failed to import query "${query.name}":`, err);
+            }
+          }
         }
       }
 

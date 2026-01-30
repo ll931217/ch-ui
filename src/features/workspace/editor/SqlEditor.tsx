@@ -7,7 +7,7 @@ import {
   createMonacoEditor,
 } from "@/features/workspace/editor/monacoConfig";
 import { Button } from "@/components/ui/button";
-import { CirclePlay, Edit3Icon, Save, PlaySquare } from "lucide-react";
+import { CirclePlay, Save, PlaySquare } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,7 +38,7 @@ interface SQLEditorProps {
 const HIGHLIGHT_DECORATION_CLASS = "current-query-highlight";
 
 const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQueries }) => {
-  const { getTabById, updateTab, saveQuery, updateSavedQuery, checkSavedQueriesStatus, isAdmin } =
+  const { getTabById, updateTab, saveQuery, updateSavedQuery } =
     useAppStore();
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -47,8 +47,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const highlightTimeoutRef = useRef<number>();  // Track pending timeout
   const tab = getTabById(tabId);
   const { theme } = useTheme();
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedTitle, setEditedTitle] = useState("");
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [queryName, setQueryName] = useState(tab?.title || "Untitled Query");
   const [parsedQueries, setParsedQueries] = useState<ParsedQuery[]>([]);
@@ -150,6 +148,14 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
         handleRunAllQueries
       );
 
+      // Save query with Ctrl/Cmd+S
+      editor.addCommand(
+        monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+        () => {
+          hanldeSaveOpenDialog();
+        }
+      );
+
       // Add CSS for highlight decoration
       const styleId = `query-highlight-style-${tabId}`;
       if (!document.getElementById(styleId)) {
@@ -197,29 +203,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     }
   }, [highlightBackground, tabId]);
 
-  const handleTitleEdit = () => {
-    setEditedTitle(tab?.title || "");
-    setIsEditing(true);
-  };
-
-  const handleTitleSave = () => {
-    if (editedTitle.trim()) {
-      updateTab(tabId, { title: editedTitle.trim() });
-    }
-    setIsEditing(false);
-  };
-
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditedTitle(e.target.value);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleTitleSave();
-    } else if (e.key === "Escape") {
-      setIsEditing(false);
-    }
-  };
 
   const getCurrentQuery = useCallback(() => {
     if (!monacoRef.current) return "";
@@ -279,25 +262,10 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     }
   }, [getAllQueries, onRunQuery, onRunAllQueries]);
 
-  const hanldeSaveOpenDialog = async () => {
-    const isSavedQueryEnabled = await checkSavedQueriesStatus();
-    if (!isSavedQueryEnabled) {
-      isAdmin &&
-        toast.warning(`Saved queries are not enable.`, {
-          action: {
-            label: "Enable",
-            onClick: () => {
-              navigate("/admin");
-            },
-          },
-        });
-
-      !isAdmin &&
-        toast.warning(
-          `Saved queries are not enable. Contact your admin to enable it.`
-        );
-
-      return;
+  const hanldeSaveOpenDialog = () => {
+    // Pre-fill the query name with the current tab title
+    if (tab?.title) {
+      setQueryName(tab.title);
     }
     setIsSaveDialogOpen(true);
   };
@@ -317,7 +285,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     try {
       if (tab?.isSaved) {
         // Update existing saved query
-        await updateSavedQuery(tabId, query, queryName);
+        await updateSavedQuery(tabId, queryName, query);
         toast.success("Query updated successfully!");
       } else {
         // Save new query
@@ -344,25 +312,9 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     <div className="h-full flex flex-col">
       <div className="px-4 flex items-center justify-between border-b">
         <div className="flex items-center gap-2">
-          {isEditing ? (
-            <Input
-              type="text"
-              value={editedTitle}
-              autoFocus
-              className="w-full h-6"
-              onChange={handleTitleChange}
-              onBlur={handleTitleSave}
-              onKeyDown={handleKeyDown}
-            />
-          ) : (
-            <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-              {tab.title}
-            </span>
-          )}
-          <Edit3Icon
-            className="h-4 w-4 cursor-pointer hover:text-primary"
-            onClick={handleTitleEdit}
-          />
+          <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+            {tab.title}
+          </span>
           {hasMultipleQueries && (
             <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
               {currentQueryIndex + 1}/{queryCount}

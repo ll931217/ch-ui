@@ -2,16 +2,22 @@
 // Dexie.js Database Configuration for CH-UI
 
 import Dexie, { Table } from "dexie";
-import { SavedConnection } from "./schema";
+import { SavedConnection, SavedQuery } from "./schema";
 
 export class ChUiDatabase extends Dexie {
   connections!: Table<SavedConnection, string>;
+  savedQueries!: Table<SavedQuery, string>;
 
   constructor() {
     super("ch-ui-db");
 
     this.version(1).stores({
       connections: "id, name, isDefault, createdAt",
+    });
+
+    this.version(2).stores({
+      connections: "id, name, isDefault, createdAt",
+      savedQueries: "id, name, connectionId, createdAt",
     });
   }
 }
@@ -76,6 +82,54 @@ export async function setDefaultConnection(connectionId: string): Promise<void> 
 
 export async function getDefaultConnection(): Promise<SavedConnection | undefined> {
   return db.connections.filter((c) => c.isDefault).first();
+}
+
+// SavedQuery operations
+export async function createSavedQuery(
+  query: Omit<SavedQuery, "id" | "createdAt" | "updatedAt">
+): Promise<SavedQuery> {
+  const now = new Date();
+  const newQuery: SavedQuery = {
+    ...query,
+    id: generateId(),
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.savedQueries.add(newQuery);
+  return newQuery;
+}
+
+export async function getSavedQueryById(
+  id: string
+): Promise<SavedQuery | undefined> {
+  return db.savedQueries.get(id);
+}
+
+export async function getSavedQueriesByConnectionId(
+  connectionId: string
+): Promise<SavedQuery[]> {
+  return db.savedQueries.where("connectionId").equals(connectionId).toArray();
+}
+
+export async function updateSavedQuery(
+  id: string,
+  updates: Partial<Omit<SavedQuery, "id" | "createdAt" | "connectionId">>
+): Promise<void> {
+  await db.savedQueries.update(id, {
+    ...updates,
+    updatedAt: new Date(),
+  });
+}
+
+export async function deleteSavedQuery(id: string): Promise<void> {
+  await db.savedQueries.delete(id);
+}
+
+export async function deleteSavedQueriesByConnectionId(
+  connectionId: string
+): Promise<void> {
+  const queries = await getSavedQueriesByConnectionId(connectionId);
+  await Promise.all(queries.map((q) => deleteSavedQuery(q.id)));
 }
 
 // Export re-exports schema types

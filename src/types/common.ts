@@ -3,7 +3,10 @@ import {
   ClickHouseSettings as ClickHouseSettingsType,
   ClickHouseClient,
 } from "@clickhouse/client-web";
+import { SavedQuery } from "../lib/db/schema";
+
 export type ClickHouseSettings = ClickHouseSettingsType;
+export type { SavedQuery };
 
 export interface Credential {
   url: string;
@@ -41,25 +44,6 @@ interface Tab {
   results?: MultiQueryResult[];
   activeResultIndex?: number;
   isDirty?: boolean;
-}
-
-export interface SavedQuery {
-  id: string;
-  name: string;
-  query: string;
-  created_at: string;
-  updated_at: string;
-  owner: string;
-  is_public: boolean;
-  connection_id?: string;
-}
-
-interface SavedQueriesState {
-  isSavedQueriesActive: boolean;
-  isCheckingStatus: boolean;
-  isActivating: boolean;
-  isDeactivating: boolean;
-  error: string | null;
 }
 
 export interface QueryResult {
@@ -111,7 +95,6 @@ interface ExplorerState {
 
 interface AdminState {
   isAdmin: boolean;
-  savedQueries: SavedQueriesState;
   userPrivileges: {
     canShowUsers: boolean;
     canShowRoles: boolean;
@@ -172,17 +155,10 @@ export interface AppState
 
   checkIsAdmin: () => Promise<boolean>;
   checkUserPrivileges: () => Promise<void>;
-  activateSavedQueries: () => Promise<void>;
-  deactivateSavedQueries: () => Promise<boolean>;
-  checkSavedQueriesStatus: () => Promise<boolean>;
 
   saveQuery: (tabId: string, queryName: string, query: string) => Promise<void>;
-  updateSavedQuery: (
-    tabId: string,
-    queryName: string,
-    query: string
-  ) => Promise<void>;
-  fetchSavedQueries: (id?: string) => Promise<Array<any>>;
+  updateSavedQuery: (id: string, name: string, query: string) => Promise<void>;
+  fetchSavedQueries: () => Promise<SavedQuery[]>;
   deleteSavedQuery: (id: string) => Promise<void>;
 
   // Utilities

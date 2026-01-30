@@ -41,7 +41,4 @@ export const appQueries: Record<string, AppQuery> = {
   getKeywords: {
     query: `SELECT keyword FROM system.keywords`,
   },
-  getSavedQueries: {
-    query: `SELECT * FROM CH_UI.saved_queries order by updated_at desc`,
-  },
 };

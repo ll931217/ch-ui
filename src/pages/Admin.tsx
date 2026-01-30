@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import UserTable from "@/features/admin/components/UserManagement/index";
 import { InfoIcon, ShieldCheck } from "lucide-react";
 import InfoDialog from "@/components/common/InfoDialog";
-import ActivateSavedQueries from "@/features/admin/components/ActivateSavedQueries";
 import ClickhouseDefaultConfiguration from "@/features/admin/components/ClickhouseDefaultConfiguration";
 import PermissionsConfig from "@/features/admin/components/PermissionsConfig";
 import AuditLogViewer from "@/features/admin/components/PermissionsConfig/AuditLogViewer";
@@ -79,15 +78,6 @@ export default function Admin() {
                   Audit Log
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                className={`w-full justify-start ${
-                  activeSection === "queries" ? "" : "text-gray-400"
-                } hover:bg-muted/50`}
-                onClick={() => setActiveSection("queries")}
-              >
-                Saved Queries
-              </Button>
             </nav>
           </div>
 
@@ -97,16 +87,6 @@ export default function Admin() {
               {activeSection === "users" && (
                 <div>
                   <UserTable />
-                </div>
-              )}
-
-              {activeSection === "queries" && (
-                <div>
-                  <h2 className="text-2xl font-medium mb-2">Saved Queries</h2>
-                  <p className="text-gray-400 mb-6">
-                    Manage and activate saved queries.
-                  </p>
-                  <ActivateSavedQueries />
                 </div>
               )}
 

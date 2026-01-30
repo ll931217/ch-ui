@@ -57,4 +57,24 @@ export interface ExportData {
   version: string;
   exportedAt: string;
   connections: ExportedConnection[];
+  savedQueries?: Record<string, ExportedSavedQuery[]>; // connectionName -> queries
+}
+
+// Saved Queries schema
+export interface SavedQuery {
+  id: string;
+  name: string;
+  query: string;
+  connectionId: string;
+  databaseName: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type CreateSavedQuery = Omit<SavedQuery, "id" | "createdAt" | "updatedAt">;
+
+export interface ExportedSavedQuery {
+  name: string;
+  query: string;
+  databaseName: string;
 }

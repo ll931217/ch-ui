@@ -37,7 +37,6 @@ const DatabaseExplorer: React.FC = () => {
     openCreateDatabaseModal,
     openCreateTableModal,
     openUploadFileModal,
-    checkSavedQueriesStatus,
     fetchSavedQueries,
     clickHouseClient,
     selectedDatabase,
@@ -47,7 +46,6 @@ const DatabaseExplorer: React.FC = () => {
     (state) => state.updatedSavedQueriesTrigger,
   );
 
-  const [isQueriesEnabled, setIsQueriesEnabled] = useState(false);
   const [savedQueriesList, setSavedQueriesList] = useState<SavedQuery[]>([]);
 
   const filteredDatabases = useMemo(() => {
@@ -57,14 +55,55 @@ const DatabaseExplorer: React.FC = () => {
 
   // Transform databases to include folder structure
   const organizedDatabases = useMemo(() => {
-    return filteredDatabases.map((db) => {
-      const tables = db.children.filter((child) => child.type === "table");
+    // When a specific database is selected, return folders directly (flattened)
+    if (selectedDatabase && filteredDatabases.length === 1) {
+      const db = filteredDatabases[0];
+      const tables = db.children.filter((child) => child.type === "table") as TreeNodeData[];
       const views = db.children.filter(
         (child) => child.type === "view" || child.type === "materialized_view"
-      );
+      ) as TreeNodeData[];
       const dictionaries = db.children.filter(
         (child) => child.type === "dictionary"
-      );
+      ) as TreeNodeData[];
+
+      const folders: TreeNodeData[] = [];
+
+      if (tables.length > 0) {
+        folders.push({
+          name: "Tables",
+          type: "table" as const,
+          children: tables,
+        });
+      }
+
+      if (views.length > 0) {
+        folders.push({
+          name: "Views",
+          type: "view" as const,
+          children: views,
+        });
+      }
+
+      if (dictionaries.length > 0) {
+        folders.push({
+          name: "Dictionaries",
+          type: "dictionary" as const,
+          children: dictionaries,
+        });
+      }
+
+      return folders;
+    }
+
+    // When showing all databases, include database nodes
+    return filteredDatabases.map((db) => {
+      const tables = db.children.filter((child) => child.type === "table") as TreeNodeData[];
+      const views = db.children.filter(
+        (child) => child.type === "view" || child.type === "materialized_view"
+      ) as TreeNodeData[];
+      const dictionaries = db.children.filter(
+        (child) => child.type === "dictionary"
+      ) as TreeNodeData[];
 
       const folders: TreeNodeData[] = [];
 
@@ -97,7 +136,7 @@ const DatabaseExplorer: React.FC = () => {
         children: folders,
       };
     });
-  }, [filteredDatabases]);
+  }, [filteredDatabases, selectedDatabase]);
 
   const refreshDatabases = useCallback(() => {
     if (!clickHouseClient) {
@@ -139,34 +178,13 @@ const DatabaseExplorer: React.FC = () => {
       console.error("Failed to fetch database info:", err);
     });
 
-    const checkQueriesEnabled = async () => {
-      try {
-        const enabled = await checkSavedQueriesStatus();
-        setIsQueriesEnabled(enabled);
-        return enabled;
-      } catch (err) {
-        console.error("Failed to check saved queries status:", err);
-        return false;
-      }
-    };
-
-    checkQueriesEnabled().then((enabled) => {
-      if (enabled) {
-        loadSavedQueries();
-      }
-    });
-  }, [
-    clickHouseClient,
-    fetchDatabaseInfo,
-    checkSavedQueriesStatus,
-    loadSavedQueries,
-  ]);
+    // Load saved queries
+    loadSavedQueries();
+  }, [clickHouseClient, fetchDatabaseInfo, loadSavedQueries]);
 
   useEffect(() => {
-    if (isQueriesEnabled) {
-      loadSavedQueries();
-    }
-  }, [isQueriesEnabled, loadSavedQueries, updatedSavedQueriesTrigger]);
+    loadSavedQueries();
+  }, [loadSavedQueries, updatedSavedQueriesTrigger]);
 
   const handleSavedQueryOpen = (query: SavedQuery) => {
     addTab({
@@ -260,7 +278,7 @@ const DatabaseExplorer: React.FC = () => {
                     <TreeNode
                       node={node as TreeNodeData}
                       level={0}
-                      parentDatabaseName={node.name}
+                      parentDatabaseName={selectedDatabase || node.name}
                       refreshData={refreshDatabases}
                       key={node.name}
                     />
@@ -275,20 +293,11 @@ const DatabaseExplorer: React.FC = () => {
             </ScrollArea>
           }
           queriesContent={
-            isQueriesEnabled ? (
-              <SavedQueriesList
-                queries={savedQueriesList}
-                onQueryOpen={handleSavedQueryOpen}
-                onRefresh={loadSavedQueries}
-              />
-            ) : (
-              <div className="p-4 text-muted-foreground text-center">
-                <p>Saved queries feature is not enabled.</p>
-                <p className="text-xs mt-2">
-                  Enable it in the Admin panel to save queries.
-                </p>
-              </div>
-            )
+            <SavedQueriesList
+              queries={savedQueriesList}
+              onQueryOpen={handleSavedQueryOpen}
+              onRefresh={loadSavedQueries}
+            />
           }
         />
       </div>

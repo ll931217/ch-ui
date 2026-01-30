@@ -66,6 +66,9 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^24.10.1",
     "@types/papaparse": "^5.5.1",
@@ -76,6 +79,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "happy-dom": "^20.4.0",
     "typescript": "^5.9.3",
     "vite": "^7.2.6",
     "vitest": "^3.2.4"

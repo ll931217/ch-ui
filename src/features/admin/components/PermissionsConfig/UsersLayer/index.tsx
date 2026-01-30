@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search, UserPlus, Edit, Trash2 } from "lucide-react";
+import { UserPlus, Edit, Trash2 } from "lucide-react";
 import useAppStore from "@/store";
 import { UserData } from "@/features/admin/types";
 import { toast } from "sonner";
@@ -17,6 +16,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import UserEditor from "./UserEditor";
 import { ListSkeleton } from "../LoadingSkeletons/ListSkeleton";
+import EnhancedSearch from "../EnhancedSearch";
+import { useSearchFilter } from "../hooks/useSearchFilter";
 
 interface UsersLayerProps {
   onAddChange: (change: any) => void;
@@ -26,9 +27,18 @@ export default function UsersLayer({ onAddChange }: UsersLayerProps) {
   const { clickHouseClient, userPrivileges } = useAppStore();
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  // Enhanced search and filter
+  const {
+    searchTerm,
+    setSearchTerm,
+    options,
+    setOptions,
+    filterItems,
+    loadPreferences,
+  } = useSearchFilter();
 
   const canEdit = userPrivileges?.canAlterUser || userPrivileges?.hasGrantOption;
   const canCreate = userPrivileges?.canCreateUser;
@@ -75,10 +85,19 @@ export default function UsersLayer({ onAddChange }: UsersLayerProps) {
     fetchUsers();
   }, [clickHouseClient]);
 
-  // Filter users based on search term
-  const filteredUsers = users.filter((user) =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Load search preferences on mount
+  useEffect(() => {
+    loadPreferences("users");
+  }, [loadPreferences]);
+
+  // Extract unique auth types for filter dropdown
+  const authTypes = Array.from(new Set(users.map((u) => u.auth_type).filter(Boolean)));
+
+  // Filter users using enhanced search
+  const filteredUsers = filterItems(users, searchTerm, {
+    ...options,
+    searchFields: ["name", "id", "auth_type"],
+  });
 
   const handleEditUser = (user: UserData) => {
     setSelectedUser(user);
@@ -125,17 +144,18 @@ export default function UsersLayer({ onAddChange }: UsersLayerProps) {
         )}
       </div>
 
-      {/* Search bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search users..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-          disabled={loading}
-        />
-      </div>
+      {/* Enhanced search bar */}
+      <EnhancedSearch
+        value={searchTerm}
+        onChange={(value) => setSearchTerm(value, "users")}
+        options={options}
+        onOptionsChange={(opts) => setOptions(opts, "users")}
+        placeholder="Search users by name, ID, or auth type..."
+        disabled={loading}
+        showQuickFilters={false}
+        authTypes={authTypes}
+        layer="users"
+      />
 
       {/* Users table */}
       {loading ? (

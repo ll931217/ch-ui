@@ -121,7 +121,14 @@ const AppInitializer = ({ children }: { children: ReactNode }) => {
         }
 
         await initializeApp();
-        await checkIsAdmin();
+
+        // Only check admin status if client is initialized
+        const { clickHouseClient } = useAppStore.getState();
+        if (clickHouseClient) {
+          await checkIsAdmin().catch(err => {
+            console.warn("Admin check skipped:", err);
+          });
+        }
       } catch (err) {
         console.error("Initialization failed:", err);
         // Clear activeConnectionId if initialization failed

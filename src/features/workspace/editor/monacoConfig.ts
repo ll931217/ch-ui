@@ -42,8 +42,13 @@ function initializeClickHouseClient(
       username: credential.username,
       password: credential.password || "", // Allow empty password
     });
+    console.log("Monaco ClickHouse client initialized successfully");
   } else {
-    console.warn("Invalid or missing ClickHouse credentials:", credential);
+    // Only log if this is not the initial empty state
+    const hasAnyCredential = credential?.url || credential?.username;
+    if (hasAnyCredential) {
+      console.warn("Invalid or missing ClickHouse credentials:", credential);
+    }
   }
 }
 

@@ -45,6 +45,7 @@ const DatabaseExplorer: React.FC = () => {
     openUploadFileModal,
     checkSavedQueriesStatus,
     fetchSavedQueries,
+    clickHouseClient,
   } = useAppStore();
 
   const updatedSavedQueriesTrigger = useAppStore(state => state.updatedSavedQueriesTrigger);
@@ -71,8 +72,14 @@ const DatabaseExplorer: React.FC = () => {
   }, [savedQueriesList, searchQueryValue]);
 
   const refreshDatabases = useCallback(() => {
-    fetchDatabaseInfo();
-  }, [fetchDatabaseInfo]);
+    if (!clickHouseClient) {
+      console.warn("Cannot refresh databases: ClickHouse client not initialized");
+      return;
+    }
+    fetchDatabaseInfo().catch(err => {
+      console.error("Failed to refresh databases:", err);
+    });
+  }, [clickHouseClient, fetchDatabaseInfo]);
 
   const loadSavedQueries = useCallback(async () => {
     try {
@@ -90,12 +97,25 @@ const DatabaseExplorer: React.FC = () => {
   }, [fetchSavedQueries]);
 
   useEffect(() => {
-    fetchDatabaseInfo();
+    // Only fetch data if client is initialized
+    if (!clickHouseClient) {
+      console.log("DataExplorer: Waiting for ClickHouse client to be initialized...");
+      return;
+    }
+
+    fetchDatabaseInfo().catch(err => {
+      console.error("Failed to fetch database info:", err);
+    });
 
     const checkQueriesEnabled = async () => {
-      const enabled = await checkSavedQueriesStatus();
-      setIsQueriesEnabled(enabled);
-      return enabled;
+      try {
+        const enabled = await checkSavedQueriesStatus();
+        setIsQueriesEnabled(enabled);
+        return enabled;
+      } catch (err) {
+        console.error("Failed to check saved queries status:", err);
+        return false;
+      }
     };
 
     checkQueriesEnabled().then((enabled) => {
@@ -103,7 +123,7 @@ const DatabaseExplorer: React.FC = () => {
         loadSavedQueries();
       }
     });
-  }, [fetchDatabaseInfo, checkSavedQueriesStatus, loadSavedQueries]);
+  }, [clickHouseClient, fetchDatabaseInfo, checkSavedQueriesStatus, loadSavedQueries]);
 
   useEffect(() => {
     if (isQueriesEnabled) {

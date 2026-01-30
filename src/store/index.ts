@@ -702,7 +702,9 @@ const useAppStore = create<AppState>()(
         fetchDatabaseInfo: async () => {
           const { clickHouseClient } = get();
           if (!clickHouseClient) {
-            throw new Error("ClickHouse client is not initialized");
+            console.warn("fetchDatabaseInfo: ClickHouse client is not initialized");
+            set({ isLoadingDatabase: false });
+            return;
           }
           set({ isLoadingDatabase: true });
           try {
@@ -795,7 +797,9 @@ const useAppStore = create<AppState>()(
         checkIsAdmin: async (): Promise<boolean> => {
           const { clickHouseClient } = get();
           if (!clickHouseClient) {
-            throw new ClickHouseError("ClickHouse client is not initialized");
+            console.warn("checkIsAdmin: ClickHouse client is not initialized");
+            set({ isAdmin: false });
+            return false;
           }
           try {
             const result = await clickHouseClient.query({
@@ -817,7 +821,7 @@ const useAppStore = create<AppState>()(
               error instanceof Error ? error.message : "Unknown error occurred";
             console.error("Failed to check admin status:", errorMessage);
             set({ isAdmin: false });
-            throw new ClickHouseError("Failed to check admin status", error);
+            return false;
           }
         },
 
@@ -825,7 +829,18 @@ const useAppStore = create<AppState>()(
          * Checks if the saved queries table exists in ClickHouse.
          */
         checkSavedQueriesStatus: async (): Promise<boolean> => {
-          const { runQuery } = get();
+          const { clickHouseClient, runQuery } = get();
+          if (!clickHouseClient) {
+            console.warn("checkSavedQueriesStatus: ClickHouse client is not initialized");
+            set((state) => ({
+              savedQueries: {
+                ...state.savedQueries,
+                isSavedQueriesActive: false,
+              },
+            }));
+            return false;
+          }
+
           set((state) => ({
             savedQueries: {
               ...state.savedQueries,
@@ -858,7 +873,8 @@ const useAppStore = create<AppState>()(
                 error: errorMessage,
               },
             }));
-            throw new ClickHouseError(errorMessage, error);
+            console.error(errorMessage);
+            return false;
           } finally {
             set((state) => ({
               savedQueries: {

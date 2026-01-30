@@ -151,9 +151,12 @@ export function ConfirmationDialog({
                 autoComplete="off"
                 autoFocus
                 className="font-mono"
+                aria-required="true"
+                aria-invalid={typedName !== "" && typedName !== entityName}
+                aria-describedby={typedName && typedName !== entityName ? "confirm-name-error" : undefined}
               />
               {typedName && typedName !== entityName && (
-                <p className="text-xs text-red-500">
+                <p className="text-xs text-red-500" id="confirm-name-error" role="alert">
                   Name does not match. Please type exactly: {entityName}
                 </p>
               )}

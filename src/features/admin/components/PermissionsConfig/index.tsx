@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -92,27 +93,45 @@ export default function PermissionsConfig() {
   const accessibleLayers = layers.filter((layer) => layer.canAccess);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" role="main" aria-label="Permissions Configuration">
+      {/* Skip to content link for keyboard navigation */}
+      <a
+        href="#permissions-tabs"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md"
+      >
+        Skip to permissions tabs
+      </a>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-medium mb-2">Permissions Configuration</h2>
-          <p className="text-gray-400">
+          <h2 className="text-2xl font-medium mb-2" id="permissions-heading">
+            Permissions Configuration
+          </h2>
+          <p className="text-gray-400" id="permissions-description">
             Comprehensive access management with granular control
           </p>
         </div>
 
-        {/* Pending changes indicator */}
+        {/* Pending changes indicator with live region */}
         {pendingChanges.length > 0 && (
           <Button
             onClick={toggleReviewPanel}
             variant="default"
             size="lg"
             className="gap-2"
+            aria-label={`Review ${pendingChanges.length} pending change${pendingChanges.length !== 1 ? "s" : ""}`}
+            aria-describedby="pending-changes-count"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-4 h-4" aria-hidden="true" />
             Review Changes
-            <Badge variant="secondary" className="ml-1">
+            <Badge
+              variant="secondary"
+              className="ml-1"
+              id="pending-changes-count"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {pendingChanges.length}
             </Badge>
           </Button>
@@ -121,7 +140,11 @@ export default function PermissionsConfig() {
 
       {/* No accessible layers warning */}
       {accessibleLayers.length === 0 && (
-        <div className="border border-yellow-500/50 bg-yellow-500/10 rounded-md p-4">
+        <div
+          className="border border-yellow-500/50 bg-yellow-500/10 rounded-md p-4"
+          role="alert"
+          aria-live="polite"
+        >
           <p className="text-sm text-yellow-500">
             You don't have permissions to access any permission configuration layers.
             Contact your administrator for access.
@@ -135,22 +158,39 @@ export default function PermissionsConfig() {
           value={activeLayer}
           onValueChange={(value) => setActiveLayer(value as LayerType)}
           className="w-full"
+          id="permissions-tabs"
+          aria-labelledby="permissions-heading"
+          aria-describedby="permissions-description"
         >
-          <TabsList className="w-full justify-start overflow-x-auto">
+          <TabsList
+            className="w-full justify-start overflow-x-auto"
+            role="tablist"
+            aria-label="Permission configuration layers"
+          >
             {accessibleLayers.map((layer) => (
               <TabsTrigger
                 key={layer.id}
                 value={layer.id}
                 className="gap-2"
+                role="tab"
+                aria-label={layer.label}
+                aria-selected={activeLayer === layer.id}
+                aria-controls={`panel-${layer.id}`}
               >
-                {layer.icon}
+                {React.cloneElement(layer.icon as React.ReactElement, { "aria-hidden": true })}
                 {layer.label}
               </TabsTrigger>
             ))}
           </TabsList>
 
           {/* Tab contents */}
-          <TabsContent value="users" className="space-y-4">
+          <TabsContent
+            value="users"
+            className="space-y-4"
+            role="tabpanel"
+            id="panel-users"
+            aria-labelledby="tab-users"
+          >
             <ErrorBoundary
               onError={(error, errorInfo) => {
                 console.error("Users layer error:", {
@@ -167,7 +207,13 @@ export default function PermissionsConfig() {
             </ErrorBoundary>
           </TabsContent>
 
-          <TabsContent value="roles" className="space-y-4">
+          <TabsContent
+            value="roles"
+            className="space-y-4"
+            role="tabpanel"
+            id="panel-roles"
+            aria-labelledby="tab-roles"
+          >
             <ErrorBoundary
               onError={(error, errorInfo) => {
                 console.error("Roles layer error:", {
@@ -184,7 +230,13 @@ export default function PermissionsConfig() {
             </ErrorBoundary>
           </TabsContent>
 
-          <TabsContent value="quotas" className="space-y-4">
+          <TabsContent
+            value="quotas"
+            className="space-y-4"
+            role="tabpanel"
+            id="panel-quotas"
+            aria-labelledby="tab-quotas"
+          >
             <ErrorBoundary
               onError={(error, errorInfo) => {
                 console.error("Quotas layer error:", {
@@ -201,7 +253,13 @@ export default function PermissionsConfig() {
             </ErrorBoundary>
           </TabsContent>
 
-          <TabsContent value="row_policies" className="space-y-4">
+          <TabsContent
+            value="row_policies"
+            className="space-y-4"
+            role="tabpanel"
+            id="panel-row_policies"
+            aria-labelledby="tab-row_policies"
+          >
             <ErrorBoundary
               onError={(error, errorInfo) => {
                 console.error("Row Policies layer error:", {
@@ -218,7 +276,13 @@ export default function PermissionsConfig() {
             </ErrorBoundary>
           </TabsContent>
 
-          <TabsContent value="settings_profiles" className="space-y-4">
+          <TabsContent
+            value="settings_profiles"
+            className="space-y-4"
+            role="tabpanel"
+            id="panel-settings_profiles"
+            aria-labelledby="tab-settings_profiles"
+          >
             <ErrorBoundary
               onError={(error, errorInfo) => {
                 console.error("Settings Profiles layer error:", {
@@ -235,7 +299,13 @@ export default function PermissionsConfig() {
             </ErrorBoundary>
           </TabsContent>
 
-          <TabsContent value="matrix" className="space-y-4">
+          <TabsContent
+            value="matrix"
+            className="space-y-4"
+            role="tabpanel"
+            id="panel-matrix"
+            aria-labelledby="tab-matrix"
+          >
             <ErrorBoundary
               onError={(error, errorInfo) => {
                 console.error("Permissions Matrix error:", {

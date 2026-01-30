@@ -14,6 +14,7 @@ import RowPoliciesLayer from "./RowPoliciesLayer";
 import SettingsProfilesLayer from "./SettingsProfilesLayer";
 import PermissionsMatrix from "./PermissionsMatrix";
 import ReviewPanel from "./ReviewPanel";
+import ExportImportDialog from "./ExportImportDialog";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { toast } from "sonner";
 
@@ -115,29 +116,34 @@ export default function PermissionsConfig() {
           </p>
         </div>
 
-        {/* Pending changes indicator with live region */}
-        {pendingChanges.length > 0 && (
-          <Button
-            onClick={toggleReviewPanel}
-            variant="default"
-            size="lg"
-            className="gap-2"
-            aria-label={`Review ${pendingChanges.length} pending change${pendingChanges.length !== 1 ? "s" : ""}`}
-            aria-describedby="pending-changes-count"
-          >
-            <Eye className="w-4 h-4" aria-hidden="true" />
-            Review Changes
-            <Badge
-              variant="secondary"
-              className="ml-1"
-              id="pending-changes-count"
-              aria-live="polite"
-              aria-atomic="true"
+        {/* Action buttons */}
+        <div className="flex items-center gap-3">
+          <ExportImportDialog />
+
+          {/* Pending changes indicator with live region */}
+          {pendingChanges.length > 0 && (
+            <Button
+              onClick={toggleReviewPanel}
+              variant="default"
+              size="lg"
+              className="gap-2"
+              aria-label={`Review ${pendingChanges.length} pending change${pendingChanges.length !== 1 ? "s" : ""}`}
+              aria-describedby="pending-changes-count"
             >
-              {pendingChanges.length}
-            </Badge>
-          </Button>
-        )}
+              <Eye className="w-4 h-4" aria-hidden="true" />
+              Review Changes
+              <Badge
+                variant="secondary"
+                className="ml-1"
+                id="pending-changes-count"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {pendingChanges.length}
+              </Badge>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* No accessible layers warning */}

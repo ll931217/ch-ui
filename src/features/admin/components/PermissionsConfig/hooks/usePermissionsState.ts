@@ -7,8 +7,8 @@ import {
   LayerType,
 } from "../types";
 import useAppStore from "@/store";
-import { toast } from "sonner";
 import { useAuditLog } from "./useAuditLog";
+import { useEnhancedToast } from "./useEnhancedToast";
 
 /**
  * Hook to manage permissions configuration state
@@ -17,6 +17,7 @@ import { useAuditLog } from "./useAuditLog";
 export function usePermissionsState(): PermissionsState & PermissionsActions {
   const { runQuery, credential, userPrivileges } = useAppStore();
   const { initializeAuditTable, logChange } = useAuditLog();
+  const toast = useEnhancedToast();
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [activeLayer, setActiveLayer] = useState<LayerType>("users");
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
@@ -42,27 +43,49 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
       };
 
       setPendingChanges((prev) => [...prev, newChange]);
-      toast.info(`Change staged: ${change.description}`);
+      toast.info(`Change staged: ${change.description}`, {
+        details: `${change.type} on ${change.entityType}: ${change.entityName}`,
+      });
     },
-    []
+    [toast]
   );
 
   /**
    * Remove a pending change from the queue
    */
-  const removePendingChange = useCallback((changeId: string) => {
-    setPendingChanges((prev) => prev.filter((c) => c.id !== changeId));
-    toast.info("Change removed from queue");
-  }, []);
+  const removePendingChange = useCallback(
+    (changeId: string) => {
+      const removedChange = pendingChanges.find((c) => c.id === changeId);
+      setPendingChanges((prev) => prev.filter((c) => c.id !== changeId));
+
+      if (removedChange) {
+        toast.info("Change removed from queue", {
+          details: removedChange.description,
+          showUndo: true,
+          onUndo: () => {
+            setPendingChanges((prev) => [...prev, removedChange]);
+          },
+        });
+      }
+    },
+    [pendingChanges, toast]
+  );
 
   /**
    * Clear all pending changes
    */
   const clearPendingChanges = useCallback(() => {
+    const clearedChanges = [...pendingChanges];
     setPendingChanges([]);
     setExecutionResults([]);
-    toast.info("All pending changes cleared");
-  }, []);
+
+    toast.info(`${clearedChanges.length} change(s) cleared`, {
+      showUndo: clearedChanges.length > 0,
+      onUndo: () => {
+        setPendingChanges(clearedChanges);
+      },
+    });
+  }, [pendingChanges, toast]);
 
   /**
    * Toggle the review panel
@@ -131,6 +154,12 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
     setExecutionResults([]);
 
     const results: ChangeExecutionResult[] = [];
+    const loadingToast = toast.loading(
+      `Executing ${pendingChanges.length} change(s)...`,
+      {
+        details: "Please wait while changes are applied",
+      }
+    );
 
     try {
       // Execute changes sequentially
@@ -140,9 +169,10 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
 
         if (!result.success) {
           // Stop on first error
-          toast.error(
-            `Failed to execute change: ${change.description}. Error: ${result.error}`
-          );
+          loadingToast.dismiss();
+          toast.error(`Failed to execute change`, {
+            details: `${change.description}\nError: ${result.error}`,
+          });
           break;
         }
       }
@@ -152,15 +182,22 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
       // Check if all succeeded
       const allSucceeded = results.every((r) => r.success);
       if (allSucceeded) {
-        toast.success(`Successfully executed ${results.length} change(s)`);
+        loadingToast.dismiss();
+
+        const executedChanges = [...pendingChanges];
+        toast.success(`Successfully executed ${results.length} change(s)`, {
+          details: executedChanges.map((c) => c.description).join("\n"),
+        });
+
         // Clear pending changes on success
         setPendingChanges([]);
         setIsReviewPanelOpen(false);
       } else {
+        loadingToast.dismiss();
         const successCount = results.filter((r) => r.success).length;
-        toast.warning(
-          `Executed ${successCount} of ${pendingChanges.length} changes. Some failed.`
-        );
+        toast.warning(`Partial execution completed`, {
+          details: `${successCount} of ${pendingChanges.length} changes succeeded. Some failed.`,
+        });
         // Remove only the successful changes
         const successfulIds = results
           .filter((r) => r.success)
@@ -172,15 +209,16 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
 
       return results;
     } catch (error) {
-      toast.error(
-        `Error during execution: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
+      loadingToast.dismiss();
+      toast.error("Error during execution", {
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
       setExecutionResults(results);
       return results;
     } finally {
       setIsExecuting(false);
     }
-  }, [pendingChanges, executeChange]);
+  }, [pendingChanges, executeChange, toast]);
 
   return {
     // State

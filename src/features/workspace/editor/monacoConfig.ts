@@ -2,13 +2,15 @@
 import { createClient } from "@clickhouse/client-web";
 import * as monaco from "monaco-editor";
 import { format } from "sql-formatter";
+import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { appQueries } from "./appQueries";
 
 // Add this declaration to extend the Window interface
 declare global {
   interface Window {
     MonacoEnvironment?: {
-      getWorkerUrl: () => string;
+      getWorker?: () => Worker;
+      getWorkerUrl?: () => string;
     };
   }
 }
@@ -125,9 +127,8 @@ let keywordsCache: string[] | null = null;
 
 // Setting up the Monaco Environment to use the editor worker
 window.MonacoEnvironment = {
-  getWorkerUrl() {
-    return new URL("../../worker/monaco-editor-worker.js", import.meta.url)
-      .href;
+  getWorker() {
+    return new EditorWorker();
   },
 };
 
@@ -135,9 +136,8 @@ window.MonacoEnvironment = {
 function ensureMonacoEnvironment() {
   if (typeof window.MonacoEnvironment === "undefined") {
     window.MonacoEnvironment = {
-      getWorkerUrl() {
-        return new URL("../../worker/monaco-editor-worker.js", import.meta.url)
-          .href;
+      getWorker() {
+        return new EditorWorker();
       },
     };
   }
@@ -355,21 +355,32 @@ export const initializeMonacoGlobally = async () => {
 
   // Register completion item provider for SQL
   monaco.languages.registerCompletionItemProvider("sql", {
-    provideCompletionItems: async (model, position) => {
-      const word = model.getWordUntilPosition(position);
-      const range = {
-        startLineNumber: position.lineNumber,
-        endLineNumber: position.lineNumber,
-        startColumn: word.startColumn,
-        endColumn: word.endColumn,
-      };
+    provideCompletionItems: async (model, position, context, token) => {
+      try {
+        // Early exit if cancelled
+        if (token.isCancellationRequested) {
+          return { suggestions: [] };
+        }
 
-      const dbStructure = await getDatabasesTablesAndColumns();
-      const queryContext = parseQueryContext(model.getValue(), position);
-      const clickHouseFunctionsArray = await getFunctions();
-      const clickHouseKeywordsArray = await getKeywords(); // Fetch keywords from API
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        };
 
-      const suggestions: monaco.languages.CompletionItem[] = [];
+        const dbStructure = await getDatabasesTablesAndColumns();
+        const queryContext = parseQueryContext(model.getValue(), position);
+        const clickHouseFunctionsArray = await getFunctions();
+        const clickHouseKeywordsArray = await getKeywords(); // Fetch keywords from API
+
+        // Check cancellation after async calls
+        if (token.isCancellationRequested) {
+          return { suggestions: [] };
+        }
+
+        const suggestions: monaco.languages.CompletionItem[] = [];
 
       dbStructure.forEach((database: Database) => {
         if (
@@ -440,9 +451,13 @@ export const initializeMonacoGlobally = async () => {
         range: range,
       }));
 
-      return {
-        suggestions: [...suggestions, ...keywordSuggestions, ...chFunctions],
-      };
+        return {
+          suggestions: [...suggestions, ...keywordSuggestions, ...chFunctions],
+        };
+      } catch {
+        // Silently return empty on disposal/cancellation
+        return { suggestions: [] };
+      }
     },
   });
 

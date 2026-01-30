@@ -358,22 +358,30 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
           <TabsTrigger value="results">
             Results
             {hasData && (
-              <div className="ml-2 text-muted-foreground items-center flex">
+              <span className="ml-2 text-muted-foreground">
                 ({tab?.result.data.length} rows)
-                <DownloadDialog data={tab?.result.data} />
-              </div>
+              </span>
             )}
           </TabsTrigger>
           <TabsTrigger value="metadata">
             Metadata
             {hasMeta && (
-              <div className="ml-2 text-muted-foreground items-center flex">
+              <span className="ml-2 text-muted-foreground">
                 ({tab?.result.meta.length} columns)
-                <DownloadDialog data={tab?.result.meta} />
-              </div>
+              </span>
             )}
           </TabsTrigger>
           <TabsTrigger value="statistics">Statistics</TabsTrigger>
+
+          {/* Download actions - outside tab triggers */}
+          <div className="ml-auto flex items-center">
+            {hasData && activeTab === "results" && (
+              <DownloadDialog data={tab?.result.data} />
+            )}
+            {hasMeta && activeTab === "metadata" && (
+              <DownloadDialog data={tab?.result.meta} />
+            )}
+          </div>
         </TabsList>
         <div className="flex-1">
           <TabsContent value="results" className="h-full m-0">
@@ -432,8 +440,8 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
         <ResizablePanel
           id="sql-editor"
           defaultSize={300}
+          minSize={200}
           collapsible
-          collapsedSize={200}
         >
           <SQLEditor
             tabId={tabId}

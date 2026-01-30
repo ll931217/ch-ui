@@ -6,6 +6,7 @@ import InfoDialog from "@/components/common/InfoDialog";
 import ActivateSavedQueries from "@/features/admin/components/ActivateSavedQueries";
 import ClickhouseDefaultConfiguration from "@/features/admin/components/ClickhouseDefaultConfiguration";
 import PermissionsConfig from "@/features/admin/components/PermissionsConfig";
+import AuditLogViewer from "@/features/admin/components/PermissionsConfig/AuditLogViewer";
 import useAppStore from "@/store";
 
 export default function Admin() {
@@ -67,6 +68,17 @@ export default function Admin() {
                   Permissions Config
                 </Button>
               )}
+              {canViewUsersRoles && (
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-start ${
+                    activeSection === "audit" ? "" : "text-gray-400"
+                  } hover:bg-muted/50`}
+                  onClick={() => setActiveSection("audit")}
+                >
+                  Audit Log
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 className={`w-full justify-start ${
@@ -111,6 +123,12 @@ export default function Admin() {
               {activeSection === "permissions" && (
                 <div>
                   <PermissionsConfig />
+                </div>
+              )}
+
+              {activeSection === "audit" && (
+                <div>
+                  <AuditLogViewer />
                 </div>
               )}
             </div>

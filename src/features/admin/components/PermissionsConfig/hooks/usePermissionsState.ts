@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   PendingChange,
   PermissionsState,
@@ -8,18 +8,27 @@ import {
 } from "../types";
 import useAppStore from "@/store";
 import { toast } from "sonner";
+import { useAuditLog } from "./useAuditLog";
 
 /**
  * Hook to manage permissions configuration state
  * Handles pending changes queue and execution
  */
 export function usePermissionsState(): PermissionsState & PermissionsActions {
-  const { runQuery } = useAppStore();
+  const { runQuery, credential, userPrivileges } = useAppStore();
+  const { initializeAuditTable, logChange } = useAuditLog();
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [activeLayer, setActiveLayer] = useState<LayerType>("users");
   const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResults, setExecutionResults] = useState<ChangeExecutionResult[]>([]);
+
+  /**
+   * Initialize audit log table on mount
+   */
+  useEffect(() => {
+    initializeAuditTable();
+  }, [initializeAuditTable]);
 
   /**
    * Add a pending change to the queue
@@ -76,25 +85,35 @@ export function usePermissionsState(): PermissionsState & PermissionsActions {
         };
       }
 
+      let result: ChangeExecutionResult;
+
       try {
         // Execute all SQL statements for this change
         for (const sql of change.sqlStatements) {
           await runQuery(sql);
         }
 
-        return {
+        result = {
           changeId,
           success: true,
         };
       } catch (error) {
-        return {
+        result = {
           changeId,
           success: false,
           error: error instanceof Error ? error.message : "Unknown error",
         };
       }
+
+      // Log to audit table (don't await - fire and forget)
+      const username = credential?.username || userPrivileges?.username || "unknown";
+      logChange(change, result, username).catch((err) => {
+        console.error("Failed to log change to audit:", err);
+      });
+
+      return result;
     },
-    [pendingChanges, runQuery]
+    [pendingChanges, runQuery, credential, userPrivileges, logChange]
   );
 
   /**

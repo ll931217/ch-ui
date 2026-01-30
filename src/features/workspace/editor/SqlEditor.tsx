@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from "react";
+import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import * as monaco from "monaco-editor";
 import { useTheme } from "@/components/common/theme-provider";
 import useAppStore from "@/store";
@@ -26,8 +26,17 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { parseQueries, findQueryAtCursor, ParsedQuery } from "@/helpers/queryParser";
+import { useConnectionStore } from "@/store/connectionStore";
 
 interface SQLEditorProps {
   tabId: string;
@@ -38,8 +47,9 @@ interface SQLEditorProps {
 const HIGHLIGHT_DECORATION_CLASS = "current-query-highlight";
 
 const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQueries }) => {
-  const { getTabById, updateTab, saveQuery, updateSavedQuery } =
+  const { getTabById, updateTab, saveQuery, updateSavedQuery, dataBaseExplorer, selectedDatabase } =
     useAppStore();
+  const { connections, activeConnectionId, getDatabasesForConnection } = useConnectionStore();
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const decorationsRef = useRef<string[]>([]);
@@ -49,6 +59,8 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const { theme } = useTheme();
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [queryName, setQueryName] = useState(tab?.title || "Untitled Query");
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string>("");
+  const [selectedDatabaseName, setSelectedDatabaseName] = useState<string>("");
   const [parsedQueries, setParsedQueries] = useState<ParsedQuery[]>([]);
   const [currentQueryIndex, setCurrentQueryIndex] = useState<number>(-1);
   const navigate = useNavigate();
@@ -267,11 +279,51 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     if (tab?.title) {
       setQueryName(tab.title);
     }
+
+    // Initialize connection to current active connection
+    const currentConnectionId = activeConnectionId || "";
+    setSelectedConnectionId(currentConnectionId);
+
+    // Get available databases for the current connection
+    let databases: string[] = [];
+    if (currentConnectionId) {
+      if (currentConnectionId === activeConnectionId) {
+        databases = dataBaseExplorer.map((db) => db.name);
+      } else {
+        databases = getDatabasesForConnection(currentConnectionId);
+      }
+    }
+
+    // Set database - only if there's a connection, a selected database, and it's in the list
+    const currentDatabase =
+      selectedDatabase && currentConnectionId && databases.includes(selectedDatabase)
+        ? selectedDatabase
+        : "";
+    setSelectedDatabaseName(currentDatabase);
+
     setIsSaveDialogOpen(true);
   };
 
+  const handleConnectionChange = (connectionId: string) => {
+    setSelectedConnectionId(connectionId);
+    setSelectedDatabaseName(""); // Reset database when connection changes
+  };
+
+  const availableDatabases = useMemo(() => {
+    if (!selectedConnectionId) return [];
+
+    // If selected connection is the active one, use dataBaseExplorer (fresh data)
+    if (selectedConnectionId === activeConnectionId) {
+      return dataBaseExplorer.map((db) => db.name);
+    }
+
+    // Otherwise, try to get cached databases for that connection
+    return getDatabasesForConnection(selectedConnectionId);
+  }, [selectedConnectionId, activeConnectionId, dataBaseExplorer, getDatabasesForConnection]);
+
   const handleSaveQuery = async () => {
     const query = monacoRef.current?.getValue() || "";
+
     if (!queryName.trim()) {
       toast.error("Please enter a query name.");
       return;
@@ -282,15 +334,20 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
       return;
     }
 
+    if (!selectedConnectionId) {
+      toast.error("Please select a connection.");
+      return;
+    }
+
     try {
       if (tab?.isSaved) {
         // Update existing saved query
-        await updateSavedQuery(tabId, queryName, query);
-        toast.success("Query updated successfully!");
+        await updateSavedQuery(tabId, queryName, query, selectedConnectionId, selectedDatabaseName);
+        toast.success("Query updated!");
       } else {
         // Save new query
-        await saveQuery(tabId, queryName, query);
-        toast.success("Query saved successfully!");
+        await saveQuery(tabId, queryName, query, selectedConnectionId, selectedDatabaseName);
+        toast.success("Query saved!");
       }
       setIsSaveDialogOpen(false);
     } catch (error) {
@@ -377,16 +434,64 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
           <AlertDialogHeader>
             <AlertDialogTitle>{tab?.isSaved ? "Update Query" : "Save Query"}</AlertDialogTitle>
             <AlertDialogDescription>
-              {tab?.isSaved ? "Update the saved query:" : "Enter a name for this query:"}
+              {tab?.isSaved ? "Update the saved query:" : "Save this query to a connection:"}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="grid gap-2">
-            <Input
-              type="text"
-              placeholder="Query Name"
-              value={queryName}
-              onChange={handleQueryNameChange}
-            />
+          <div className="grid gap-4">
+            {/* Query Name */}
+            <div className="space-y-2">
+              <Label htmlFor="query-name">Query Name</Label>
+              <Input
+                id="query-name"
+                type="text"
+                placeholder="Enter query name"
+                value={queryName}
+                onChange={handleQueryNameChange}
+              />
+            </div>
+
+            {/* Connection Selector */}
+            <div className="space-y-2">
+              <Label htmlFor="connection">Connection</Label>
+              <Select value={selectedConnectionId} onValueChange={handleConnectionChange}>
+                <SelectTrigger id="connection">
+                  <SelectValue placeholder="Select connection" />
+                </SelectTrigger>
+                <SelectContent>
+                  {connections.map((conn) => (
+                    <SelectItem key={conn.id} value={conn.id}>
+                      {conn.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Database Selector */}
+            <div className="space-y-2">
+              <Label htmlFor="database">Database (optional)</Label>
+              <Select
+                value={selectedDatabaseName || "__none__"}
+                onValueChange={(value) => setSelectedDatabaseName(value === "__none__" ? "" : value)}
+                disabled={availableDatabases.length === 0}
+              >
+                <SelectTrigger id="database">
+                  <SelectValue placeholder={
+                    availableDatabases.length === 0
+                      ? "No databases available"
+                      : "Select database"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  {availableDatabases.map((db) => (
+                    <SelectItem key={db} value={db}>
+                      {db}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

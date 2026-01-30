@@ -156,8 +156,20 @@ export interface AppState
   checkIsAdmin: () => Promise<boolean>;
   checkUserPrivileges: () => Promise<void>;
 
-  saveQuery: (tabId: string, queryName: string, query: string) => Promise<void>;
-  updateSavedQuery: (id: string, name: string, query: string) => Promise<void>;
+  saveQuery: (
+    tabId: string,
+    queryName: string,
+    query: string,
+    connectionId: string,
+    databaseName: string
+  ) => Promise<void>;
+  updateSavedQuery: (
+    id: string,
+    name: string,
+    query: string,
+    connectionId: string,
+    databaseName: string
+  ) => Promise<void>;
   fetchSavedQueries: () => Promise<SavedQuery[]>;
   deleteSavedQuery: (id: string) => Promise<void>;
 

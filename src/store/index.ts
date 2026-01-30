@@ -912,23 +912,25 @@ const useAppStore = create<AppState>()(
           }
         },
 
-        saveQuery: async (tabId: string, name: string, query: string) => {
+        saveQuery: async (
+          tabId: string,
+          name: string,
+          query: string,
+          connectionId: string,
+          databaseName: string
+        ) => {
           const { updateTab } = get();
 
           try {
-            // Get the active connection ID and selected database
-            const activeConnectionId = useConnectionStore.getState().activeConnectionId;
-            if (!activeConnectionId) {
-              throw new Error("No active connection");
+            if (!connectionId) {
+              throw new Error("No connection specified");
             }
-            const selectedDatabase = get().selectedDatabase || '';
 
-            // Create the saved query in IndexedDB
             await createSavedQuery({
               name,
               query,
-              connectionId: activeConnectionId,
-              databaseName: selectedDatabase,
+              connectionId,
+              databaseName,
             });
 
             await updateTab(tabId, {
@@ -937,33 +939,30 @@ const useAppStore = create<AppState>()(
               isSaved: true,
             });
 
-            // Update the trigger to refresh saved queries
-            set((state) => ({
-              updatedSavedQueriesTrigger: Date.now().toString(),
-            }));
-
-            toast.success(`Query "${name}" saved successfully!`);
+            set({ updatedSavedQueriesTrigger: Date.now().toString() });
           } catch (error: any) {
             console.error("Failed to save query:", error);
-            toast.error(`Failed to save query: ${error.message}`);
             throw error;
           }
         },
 
-        updateSavedQuery: async (id: string, name: string, query: string) => {
+        updateSavedQuery: async (
+          id: string,
+          name: string,
+          query: string,
+          connectionId: string,
+          databaseName: string
+        ) => {
           try {
-            // Update the saved query in IndexedDB
-            await dbUpdateSavedQuery(id, { name, query });
-
-            // Trigger refresh of saved queries
-            set((state) => ({
-              updatedSavedQueriesTrigger: Date.now().toString(),
-            }));
-
-            toast.success(`Query "${name}" updated successfully!`);
+            await dbUpdateSavedQuery(id, {
+              name,
+              query,
+              connectionId,
+              databaseName,
+            });
+            set({ updatedSavedQueriesTrigger: Date.now().toString() });
           } catch (error: any) {
-            console.error("Failed to update query:", error);
-            toast.error(`Failed to update query: ${error.message}`);
+            console.error("Failed to update saved query:", error);
             throw error;
           }
         },

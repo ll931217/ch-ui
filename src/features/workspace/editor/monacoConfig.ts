@@ -4,7 +4,7 @@ import * as monaco from "monaco-editor";
 import { format } from "sql-formatter";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { appQueries } from "./appQueries";
-import { parseSQLContext, SQLContext, type ClauseType, generateTableAlias } from "./sqlContextParser";
+import { parseSQLContext, SQLContext, type ClauseType, type TableReference, generateTableAlias } from "./sqlContextParser";
 import { getAllEngines, DDL_OBJECTS } from "./clickhouseConstants";
 import useAppStore from "@/store";
 import { AutocompleteUsageTracker, type SuggestionCategory } from "./usageTracker";
@@ -301,7 +301,8 @@ function findTableByName(
 function getColumnSuggestions(
   context: SQLContext,
   dbStructure: Database[],
-  range: monaco.IRange
+  range: monaco.IRange,
+  model: monaco.editor.ITextModel
 ): monaco.languages.CompletionItem[] {
   const columns: monaco.languages.CompletionItem[] = [];
   const tracker = getUsageTracker();
@@ -310,30 +311,88 @@ function getColumnSuggestions(
     // FROM clause present - show columns from referenced tables only
     const hasMultipleTables = context.fromTables.length > 1;
 
-    for (const tableRef of context.fromTables) {
-      const db = tableRef.database || context.selectedDatabase;
-      const table = findTable(dbStructure, db, tableRef.table);
+    if (hasMultipleTables) {
+      // Multi-table mode: generate aliases for tables without explicit aliases
+      // Collect existing aliases
+      const existingAliases = new Set<string>();
+      for (const ref of context.fromTables) {
+        if (ref.alias) existingAliases.add(ref.alias.toLowerCase());
+      }
 
-      if (table && db) {
-        table.children.forEach((col) => {
-          // For multiple tables, prefix with alias or table name for clarity
-          const prefix = hasMultipleTables
-            ? (tableRef.alias || tableRef.table)
-            : null;
+      // Build alias map for tables without explicit aliases
+      const aliasMap = new Map<TableReference, string>();
+      for (const tableRef of context.fromTables) {
+        if (!tableRef.alias) {
+          const alias = generateTableAlias(tableRef.table, existingAliases);
+          aliasMap.set(tableRef, alias);
+          existingAliases.add(alias.toLowerCase());
+        }
+      }
 
-          const label = prefix ? `${prefix}.${col.name}` : col.name;
-          const insertText = prefix ? `${prefix}.${col.name}` : col.name;
-          const detail = `${col.type} - ${db}.${tableRef.table}`;
+      // Build additionalTextEdits for ALL tables that need aliases
+      // This ensures all aliases are inserted at once when any column is selected
+      const allAdditionalTextEdits: monaco.languages.TextEdit[] = [];
+      for (const tableRef of context.fromTables) {
+        if (!tableRef.alias && tableRef.endPosition !== undefined) {
+          const generatedAlias = aliasMap.get(tableRef);
+          if (generatedAlias) {
+            const insertPos = model.getPositionAt(tableRef.endPosition);
+            allAdditionalTextEdits.push({
+              range: new monaco.Range(
+                insertPos.lineNumber, insertPos.column,
+                insertPos.lineNumber, insertPos.column
+              ),
+              text: ` ${generatedAlias}`
+            });
+          }
+        }
+      }
 
-          columns.push({
-            label,
-            kind: monaco.languages.CompletionItemKind.Field,
-            insertText,
-            detail,
-            sortText: tracker.getSortText(`column:${db}.${tableRef.table}.${col.name}`, 'column'),
-            range,
+      for (const tableRef of context.fromTables) {
+        const db = tableRef.database || context.selectedDatabase;
+        const table = findTable(dbStructure, db, tableRef.table);
+
+        if (table && db) {
+          // Use explicit alias or generated alias as prefix
+          const prefix = tableRef.alias || aliasMap.get(tableRef);
+
+          table.children.forEach((col) => {
+            const label = prefix ? `${prefix}.${col.name}` : col.name;
+            const insertText = prefix ? `${prefix}.${col.name}` : col.name;
+            const detail = `${col.type} - ${db}.${tableRef.table}`;
+
+            columns.push({
+              label,
+              kind: monaco.languages.CompletionItemKind.Field,
+              insertText,
+              detail,
+              sortText: tracker.getSortText(`column:${db}.${tableRef.table}.${col.name}`, 'column'),
+              range,
+              additionalTextEdits: allAdditionalTextEdits.length > 0 ? allAdditionalTextEdits : undefined,
+            });
           });
-        });
+        }
+      }
+    } else {
+      // Single table mode: no prefix needed
+      for (const tableRef of context.fromTables) {
+        const db = tableRef.database || context.selectedDatabase;
+        const table = findTable(dbStructure, db, tableRef.table);
+
+        if (table && db) {
+          table.children.forEach((col) => {
+            const detail = `${col.type} - ${db}.${tableRef.table}`;
+
+            columns.push({
+              label: col.name,
+              kind: monaco.languages.CompletionItemKind.Field,
+              insertText: col.name,
+              detail,
+              sortText: tracker.getSortText(`column:${db}.${tableRef.table}.${col.name}`, 'column'),
+              range,
+            });
+          });
+        }
       }
     }
   } else if (context.selectedDatabase) {
@@ -451,7 +510,8 @@ function getSuggestionsForContext(
   dbStructure: Database[],
   range: monaco.IRange,
   keywords: string[],
-  functions: string[]
+  functions: string[],
+  model: monaco.editor.ITextModel
 ): monaco.languages.CompletionItem[] {
   const suggestions: monaco.languages.CompletionItem[] = [];
 
@@ -511,7 +571,8 @@ function getSuggestionsForContext(
         const columnSuggestions = getColumnSuggestions(
           context,
           dbStructure,
-          range
+          range,
+          model
         );
         suggestions.push(...columnSuggestions);
       }
@@ -752,26 +813,165 @@ export const initializeMonacoGlobally = async () => {
   // Set monarch tokens provider for SQL syntax highlighting
   monaco.languages.setMonarchTokensProvider("sql", {
     keywords: [
+      // DQL
       "SELECT",
       "FROM",
       "WHERE",
-      "ORDER BY",
-      "GROUP BY",
       "LIMIT",
-      "JOIN",
+      "OFFSET",
+      "AS",
+      "DISTINCT",
+      "ALL",
+      "TOP",
+      // DML
       "INSERT",
       "UPDATE",
       "DELETE",
+      "UPSERT",
+      // DDL
       "CREATE",
       "ALTER",
       "DROP",
+      "TRUNCATE",
+      "RENAME",
+      "ATTACH",
+      "DETACH",
+      "OPTIMIZE",
       "TABLE",
-      "INDEX",
+      "DATABASE",
       "VIEW",
+      "INDEX",
+      "DICTIONARY",
+      "FUNCTION",
+      "USER",
+      "ROLE",
+      "QUOTA",
       "TRIGGER",
       "PROCEDURE",
-      "FUNCTION",
-      "DATABASE",
+      // Joins
+      "JOIN",
+      "INNER",
+      "LEFT",
+      "RIGHT",
+      "FULL",
+      "CROSS",
+      "OUTER",
+      "NATURAL",
+      "USING",
+      "ON",
+      // Clauses
+      "GROUP",
+      "BY",
+      "ORDER",
+      "HAVING",
+      "PARTITION",
+      "CLUSTER",
+      "ENGINE",
+      "TTL",
+      "SETTINGS",
+      "FORMAT",
+      "INTO",
+      "VALUES",
+      "SET",
+      "FINAL",
+      "SAMPLE",
+      "PREWHERE",
+      // Logical
+      "AND",
+      "OR",
+      "NOT",
+      "IN",
+      "LIKE",
+      "ILIKE",
+      "BETWEEN",
+      "EXISTS",
+      "ANY",
+      "ALL",
+      "CASE",
+      "WHEN",
+      "THEN",
+      "ELSE",
+      "END",
+      "NULL",
+      "TRUE",
+      "FALSE",
+      // ClickHouse-specific
+      "SYNC",
+      "ASYNC",
+      "FINAL",
+      "DEDUPLICATE",
+      "POPULATE",
+      "LIVE",
+      "WINDOW",
+      "MATERIALIZED",
+      "TEMPORARY",
+      "REPLACE",
+      "GLOBAL",
+      "LOCAL",
+      "TOTALS",
+      "ROLLUP",
+      "CUBE",
+      "WITH",
+      "RECURSIVE",
+      "ARRAY",
+      "TUPLE",
+      "MAP",
+      // Mutation
+      "KILL",
+      "MUTATION",
+      "QUERY",
+      "SYSTEM",
+      "RELOAD",
+      "FLUSH",
+      "STOP",
+      "START",
+    ],
+    typeKeywords: [
+      // Integer
+      "UInt8",
+      "UInt16",
+      "UInt32",
+      "UInt64",
+      "UInt128",
+      "UInt256",
+      "Int8",
+      "Int16",
+      "Int32",
+      "Int64",
+      "Int128",
+      "Int256",
+      // Float/Decimal
+      "Float32",
+      "Float64",
+      "Decimal",
+      "Decimal32",
+      "Decimal64",
+      "Decimal128",
+      "Decimal256",
+      // String
+      "String",
+      "FixedString",
+      // Date/Time
+      "Date",
+      "Date32",
+      "DateTime",
+      "DateTime64",
+      // Special
+      "UUID",
+      "IPv4",
+      "IPv6",
+      "Bool",
+      "Boolean",
+      // Wrappers
+      "Nullable",
+      "LowCardinality",
+      "Array",
+      "Tuple",
+      "Map",
+      "Nested",
+      "Enum",
+      "Enum8",
+      "Enum16",
     ],
     operators: [
       "=",
@@ -790,27 +990,78 @@ export const initializeMonacoGlobally = async () => {
     ],
     tokenizer: {
       root: [
+        // Multi-word keywords (must come first)
+        [/\b(GROUP|ORDER|PARTITION|PRIMARY|SAMPLE)\s+BY\b/i, "keyword"],
+        [/\b(IF)\s+(NOT\s+)?EXISTS\b/i, "keyword"],
+        [/\b(ON)\s+CLUSTER\b/i, "keyword"],
+        [
+          /\b(INNER|LEFT|RIGHT|FULL|CROSS|OUTER|NATURAL)\s+JOIN\b/i,
+          "keyword",
+        ],
+        [/\b(LEFT|RIGHT)\s+ARRAY\s+JOIN\b/i, "keyword"],
+        [/\b(ARRAY)\s+JOIN\b/i, "keyword"],
+        [/\b(GLOBAL)\s+(NOT\s+)?IN\b/i, "keyword"],
+        [/\b(INSERT)\s+INTO\b/i, "keyword"],
+        [/\b(UNION)\s+ALL\b/i, "keyword"],
+        [/\b(WITH)\s+(TOTALS|ROLLUP|CUBE)\b/i, "keyword"],
+        [/\b(MATERIALIZED|LIVE|WINDOW)\s+VIEW\b/i, "keyword"],
+        [
+          /\b(CREATE|DROP|ALTER|TRUNCATE|RENAME|OPTIMIZE)\s+(TABLE|DATABASE|VIEW|DICTIONARY)\b/i,
+          "keyword",
+        ],
+        [/\b(SETTINGS)\s+PROFILE\b/i, "keyword"],
+        [/\b(ROW)\s+POLICY\b/i, "keyword"],
+
+        // Comments (before identifiers to avoid conflict)
+        [/--.*$/, "comment"],
+        [/\/\*/, "comment", "@comment"],
+
+        // Single-word tokens
         [
           /[a-zA-Z_]\w*/,
-          { cases: { "@keywords": "keyword", "@default": "identifier" } },
+          {
+            cases: {
+              "@typeKeywords": "type.identifier",
+              "@keywords": "keyword",
+              "@operators": "operator",
+              "@default": "identifier",
+            },
+          },
         ],
-        [/[<>!=]=?/, "operator"],
-        [/[0-9]+/, "number"],
+
+        // Operators and numbers
+        [/[<>!=]=?|<>/, "operator"],
+        [/[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?/, "number"],
+
+        // Strings
         [/"/, { token: "string.quote", bracket: "@open", next: "@string" }],
         [/'/, { token: "string.quote", bracket: "@open", next: "@string2" }],
-        [/--.*$/, "comment"],
+
+        // Backtick identifiers
+        [
+          /`/,
+          { token: "identifier.quote", bracket: "@open", next: "@quotedIdentifier" },
+        ],
       ],
       string: [
         [/[^"]+/, "string"],
+        [/""/, "string.escape"],
         [/"/, { token: "string.quote", bracket: "@close", next: "@pop" }],
       ],
       string2: [
         [/[^']+/, "string"],
+        [/''/, "string.escape"],
         [/'/, { token: "string.quote", bracket: "@close", next: "@pop" }],
       ],
+      quotedIdentifier: [
+        [/[^`]+/, "identifier"],
+        [/``/, "identifier.escape"],
+        [/`/, { token: "identifier.quote", bracket: "@close", next: "@pop" }],
+      ],
       comment: [
-        [/[^-]+/, "comment"],
-        [/--/, "comment"],
+        [/[^/*]+/, "comment"],
+        [/\*\//, "comment", "@pop"],
+        [/[/*]/, "comment"],
       ],
     },
   });
@@ -859,7 +1110,8 @@ export const initializeMonacoGlobally = async () => {
           dbStructure,
           range,
           clickHouseKeywordsArray,
-          clickHouseFunctionsArray
+          clickHouseFunctionsArray,
+          model
         );
 
         // Add SQL keyword suggestions

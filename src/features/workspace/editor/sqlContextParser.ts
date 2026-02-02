@@ -16,6 +16,7 @@ export interface TableReference {
   database: string | null;
   table: string;
   alias?: string;
+  endPosition?: number; // Position after table name where alias can be inserted
 }
 
 /**
@@ -416,10 +417,12 @@ function extractTableReferences(tokens: Token[]): TableReference[] {
         let database: string | null = null;
         let table: string = '';
         let alias: string | undefined;
+        let endPosition: number | undefined;
 
         // First identifier or keyword (could be database or table)
         if (tokens[i].type === 'IDENTIFIER' || tokens[i].type === 'KEYWORD') {
           const firstPart = tokens[i].value;
+          let tableEndIndex = i; // Track the index of the table name token
           i++;
 
           // Check if there's a dot (database.table)
@@ -430,12 +433,16 @@ function extractTableReferences(tokens: Token[]): TableReference[] {
             // Get table name
             if (i < tokens.length && (tokens[i].type === 'IDENTIFIER' || tokens[i].type === 'KEYWORD')) {
               table = tokens[i].value;
+              tableEndIndex = i;
               i++;
             }
           } else {
             // No dot, so it's just a table name
             table = firstPart;
           }
+
+          // Capture end position of the table name token (where alias would be inserted)
+          endPosition = tokens[tableEndIndex].end;
 
           // Check for alias (AS keyword is optional)
           while (i < tokens.length && tokens[i].type === 'WHITESPACE') i++;
@@ -458,7 +465,7 @@ function extractTableReferences(tokens: Token[]): TableReference[] {
           }
 
           if (table) {
-            tables.push({ database, table, alias });
+            tables.push({ database, table, alias, endPosition });
           }
         }
       }

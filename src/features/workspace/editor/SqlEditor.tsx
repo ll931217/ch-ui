@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import * as monaco from "monaco-editor";
 import { useTheme } from "@/components/common/theme-provider";
+import { useAppearance } from "@/contexts/AppearanceContext";
 import useAppStore from "@/store";
 import {
   initializeMonacoGlobally,
@@ -60,6 +61,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const usageTrackerRef = useRef<AutocompleteUsageTracker | null>(null);
   const tab = getTabById(tabId);
   const { theme } = useTheme();
+  const { editorFontSize } = useAppearance();
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [queryName, setQueryName] = useState(tab?.title || "Untitled Query");
   const [selectedConnectionId, setSelectedConnectionId] = useState<string>("");
@@ -68,8 +70,10 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const [currentQueryIndex, setCurrentQueryIndex] = useState<number>(-1);
   const navigate = useNavigate();
 
-  const editorTheme = theme === "light" ? "vs-light" : "vs-dark";
-  const highlightBackground = theme === "light"
+  const editorTheme = theme === "light" || theme === "high-contrast-light"
+    ? "vs-light"
+    : "vs-dark";
+  const highlightBackground = theme === "light" || theme === "high-contrast-light"
     ? "rgba(66, 153, 225, 0.08)"
     : "rgba(99, 179, 237, 0.12)";
 
@@ -125,7 +129,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     initializeMonacoGlobally();
     if (editorRef.current) {
       isDisposedRef.current = false;  // Reset disposed state
-      const editor = createMonacoEditor(editorRef.current, editorTheme);
+      const editor = createMonacoEditor(editorRef.current, editorTheme, editorFontSize);
       monacoRef.current = editor;
 
       // Initialize usage tracker for this connection
@@ -215,7 +219,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
         }
       };
     }
-  }, [tabId, updateTab, editorTheme]);
+  }, [tabId, updateTab, editorTheme, editorFontSize]);
 
   // Update highlight when theme changes
   useEffect(() => {
@@ -230,6 +234,12 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     }
   }, [highlightBackground, tabId]);
 
+  // Update editor font size when it changes
+  useEffect(() => {
+    if (monacoRef.current) {
+      monacoRef.current.updateOptions({ fontSize: editorFontSize });
+    }
+  }, [editorFontSize]);
 
   const getCurrentQuery = useCallback(() => {
     if (!monacoRef.current) return "";

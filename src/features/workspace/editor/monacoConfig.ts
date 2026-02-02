@@ -1232,7 +1232,8 @@ export const initializeMonacoGlobally = async () => {
 // Create a Monaco Editor instance
 export const createMonacoEditor = (
   container: HTMLElement,
-  theme: string
+  theme: string,
+  fontSize: number = 14
 ): monaco.editor.IStandaloneCodeEditor => {
   const editor = monaco.editor.create(container, {
     language: "sql",
@@ -1244,6 +1245,7 @@ export const createMonacoEditor = (
     suggestOnTriggerCharacters: true,
     quickSuggestions: true,
     wordBasedSuggestions: "off",
+    fontSize: fontSize,
   });
 
   return editor;

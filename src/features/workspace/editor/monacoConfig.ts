@@ -876,6 +876,17 @@ export const initializeMonacoGlobally = async () => {
       "FINAL",
       "SAMPLE",
       "PREWHERE",
+      "TO",
+      "CODEC",
+      // Window functions
+      "OVER",
+      "ROWS",
+      "RANGE",
+      "PRECEDING",
+      "FOLLOWING",
+      "UNBOUNDED",
+      "CURRENT",
+      "ROW",
       // Logical
       "AND",
       "OR",
@@ -916,6 +927,16 @@ export const initializeMonacoGlobally = async () => {
       "ARRAY",
       "TUPLE",
       "MAP",
+      // Compression codecs
+      "NONE",
+      "LZ4",
+      "LZ4HC",
+      "ZSTD",
+      "Delta",
+      "DoubleDelta",
+      "Gorilla",
+      "T64",
+      "FPC",
       // Mutation
       "KILL",
       "MUTATION",
@@ -972,6 +993,8 @@ export const initializeMonacoGlobally = async () => {
       "Enum",
       "Enum8",
       "Enum16",
+      "AggregateFunction",
+      "SimpleAggregateFunction",
     ],
     operators: [
       "=",

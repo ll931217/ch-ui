@@ -25,10 +25,15 @@ export type ClauseType =
   | 'SELECT'
   | 'FROM'
   | 'WHERE'
+  | 'PREWHERE'
   | 'GROUP_BY'
   | 'ORDER_BY'
   | 'HAVING'
   | 'JOIN'
+  | 'ARRAY_JOIN'
+  | 'SAMPLE'
+  | 'FORMAT'
+  | 'SETTINGS'
   | 'INSERT'
   | 'UPDATE'
   | 'DELETE'
@@ -82,6 +87,7 @@ const CLAUSE_KEYWORDS: Record<string, ClauseType> = {
   SELECT: 'SELECT',
   FROM: 'FROM',
   WHERE: 'WHERE',
+  PREWHERE: 'PREWHERE',
   'GROUP BY': 'GROUP_BY',
   GROUPBY: 'GROUP_BY',
   'ORDER BY': 'ORDER_BY',
@@ -93,6 +99,10 @@ const CLAUSE_KEYWORDS: Record<string, ClauseType> = {
   'RIGHT JOIN': 'JOIN',
   'FULL JOIN': 'JOIN',
   'CROSS JOIN': 'JOIN',
+  'ARRAY JOIN': 'ARRAY_JOIN',
+  SAMPLE: 'SAMPLE',
+  FORMAT: 'FORMAT',
+  SETTINGS: 'SETTINGS',
   INSERT: 'INSERT',
   'INSERT INTO': 'INSERT',
   UPDATE: 'UPDATE',
@@ -108,6 +118,7 @@ const CLAUSE_BOUNDARY_KEYWORDS = new Set([
   'SELECT',
   'FROM',
   'WHERE',
+  'PREWHERE',
   'GROUP',
   'ORDER',
   'HAVING',
@@ -117,6 +128,10 @@ const CLAUSE_BOUNDARY_KEYWORDS = new Set([
   'RIGHT',
   'FULL',
   'CROSS',
+  'ARRAY',
+  'SAMPLE',
+  'FORMAT',
+  'SETTINGS',
   'LIMIT',
   'OFFSET',
   'UNION',
@@ -512,4 +527,42 @@ export function parseSQLContext(
     tablePrefix,
     selectedDatabase,
   };
+}
+
+/**
+ * Generate a unique table alias based on the table name
+ * Strategy:
+ * 1. Use first letter lowercase (users -> u)
+ * 2. If conflict, use first two letters (users -> us)
+ * 3. If still conflict, append number (u1, u2, etc.)
+ */
+export function generateTableAlias(
+  tableName: string,
+  existingAliases: Set<string>
+): string {
+  if (!tableName) return 't';
+
+  // Try first letter (lowercase)
+  const firstLetter = tableName[0].toLowerCase();
+  if (!existingAliases.has(firstLetter)) {
+    return firstLetter;
+  }
+
+  // Try first two letters
+  if (tableName.length >= 2) {
+    const firstTwo = tableName.slice(0, 2).toLowerCase();
+    if (!existingAliases.has(firstTwo)) {
+      return firstTwo;
+    }
+  }
+
+  // Append number to first letter
+  let counter = 1;
+  let candidate = `${firstLetter}${counter}`;
+  while (existingAliases.has(candidate)) {
+    counter++;
+    candidate = `${firstLetter}${counter}`;
+  }
+
+  return candidate;
 }

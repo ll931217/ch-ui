@@ -6,10 +6,12 @@ import {
   initializeMonacoGlobally,
   createMonacoEditor,
 } from "@/features/workspace/editor/monacoConfig";
+import { AutocompleteUsageTracker } from "@/features/workspace/editor/usageTracker";
 import { Button } from "@/components/ui/button";
 import { CirclePlay, Save, PlaySquare } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { getSavedQueryById } from "@/lib/db";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +57,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const decorationsRef = useRef<string[]>([]);
   const isDisposedRef = useRef(false);           // Track disposed state
   const highlightTimeoutRef = useRef<number>();  // Track pending timeout
+  const usageTrackerRef = useRef<AutocompleteUsageTracker | null>(null);
   const tab = getTabById(tabId);
   const { theme } = useTheme();
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -125,6 +128,14 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
       const editor = createMonacoEditor(editorRef.current, editorTheme);
       monacoRef.current = editor;
 
+      // Initialize usage tracker for this connection
+      const connectionId = activeConnectionId || 'default';
+      if (!usageTrackerRef.current) {
+        usageTrackerRef.current = new AutocompleteUsageTracker(connectionId);
+      } else {
+        usageTrackerRef.current.setConnection(connectionId);
+      }
+
       if (tab?.content) {
         const content = typeof tab.content === "string" ? tab.content : "";
         editor.setValue(content);
@@ -134,12 +145,17 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
       const initialQueries = parseQueries(editor.getValue());
       setParsedQueries(initialQueries);
 
-      const changeListener = editor.onDidChangeModelContent(() => {
+      const changeListener = editor.onDidChangeModelContent((event) => {
         const newContent = editor.getValue();
         updateTab(tabId, { content: newContent });
         updateParsedQueries();
         // Track timeout for cleanup
         highlightTimeoutRef.current = window.setTimeout(updateCurrentQueryHighlight, 0);
+
+        // Track accepted autocomplete suggestions
+        if (usageTrackerRef.current) {
+          usageTrackerRef.current.checkForAcceptedSuggestion(event, editor.getModel());
+        }
       });
 
       // Track cursor position changes
@@ -273,13 +289,35 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     }
   }, [getAllQueries, onRunQuery, onRunAllQueries]);
 
-  const hanldeSaveOpenDialog = () => {
+  const hanldeSaveOpenDialog = async () => {
     // Pre-fill the query name with the current tab title
     if (tab?.title) {
       setQueryName(tab.title);
     }
 
-    // Initialize connection to current active connection
+    // For saved queries, fetch and use saved connection/database
+    if (tab?.isSaved) {
+      try {
+        const savedQuery = await getSavedQueryById(tabId);
+        if (savedQuery) {
+          // Validate connection still exists
+          const connectionExists = connections.some(
+            (conn) => conn.id === savedQuery.connectionId
+          );
+
+          if (connectionExists) {
+            setSelectedConnectionId(savedQuery.connectionId);
+            setSelectedDatabaseName(savedQuery.databaseName);
+            setIsSaveDialogOpen(true);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch saved query:", error);
+      }
+    }
+
+    // Default: use current workspace connection/database (existing logic)
     const currentConnectionId = activeConnectionId || "";
     setSelectedConnectionId(currentConnectionId);
 

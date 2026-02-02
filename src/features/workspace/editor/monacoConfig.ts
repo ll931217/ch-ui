@@ -4,8 +4,9 @@ import * as monaco from "monaco-editor";
 import { format } from "sql-formatter";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { appQueries } from "./appQueries";
-import { parseSQLContext, SQLContext, type ClauseType } from "./sqlContextParser";
+import { parseSQLContext, SQLContext, type ClauseType, generateTableAlias } from "./sqlContextParser";
 import useAppStore from "@/store";
+import { AutocompleteUsageTracker, type SuggestionCategory } from "./usageTracker";
 
 // Add this declaration to extend the Window interface
 declare global {
@@ -132,6 +133,22 @@ let functionsCache: string[] | null = null;
 // cache for keywords
 let keywordsCache: string[] | null = null;
 
+// Usage tracker instance (initialized with connection ID from state)
+let usageTracker: AutocompleteUsageTracker | null = null;
+
+function getUsageTracker(): AutocompleteUsageTracker {
+  const connectionId = credential?.url || 'default';
+
+  if (!usageTracker) {
+    usageTracker = new AutocompleteUsageTracker(connectionId);
+  } else {
+    // Update connection if it changed
+    usageTracker.setConnection(connectionId);
+  }
+
+  return usageTracker;
+}
+
 // Setting up the Monaco Environment to use the editor worker
 window.MonacoEnvironment = {
   getWorker() {
@@ -254,6 +271,30 @@ function findTable(
 }
 
 /**
+ * Find a table reference by its alias
+ */
+function findTableByAlias(
+  alias: string,
+  fromTables: { database: string | null; table: string; alias?: string }[]
+): { database: string | null; table: string; alias?: string } | undefined {
+  return fromTables.find(
+    (ref) => ref.alias?.toLowerCase() === alias.toLowerCase()
+  );
+}
+
+/**
+ * Find a table reference by its table name
+ */
+function findTableByName(
+  tableName: string,
+  fromTables: { database: string | null; table: string; alias?: string }[]
+): { database: string | null; table: string; alias?: string } | undefined {
+  return fromTables.find(
+    (ref) => ref.table.toLowerCase() === tableName.toLowerCase()
+  );
+}
+
+/**
  * Get column suggestions based on FROM tables or selected database
  */
 function getColumnSuggestions(
@@ -262,25 +303,33 @@ function getColumnSuggestions(
   range: monaco.IRange
 ): monaco.languages.CompletionItem[] {
   const columns: monaco.languages.CompletionItem[] = [];
+  const tracker = getUsageTracker();
 
   if (context.fromTables.length > 0) {
     // FROM clause present - show columns from referenced tables only
+    const hasMultipleTables = context.fromTables.length > 1;
+
     for (const tableRef of context.fromTables) {
       const db = tableRef.database || context.selectedDatabase;
       const table = findTable(dbStructure, db, tableRef.table);
 
       if (table && db) {
         table.children.forEach((col) => {
-          const label = tableRef.alias
-            ? `${tableRef.alias}.${col.name}`
-            : col.name;
+          // For multiple tables, prefix with alias or table name for clarity
+          const prefix = hasMultipleTables
+            ? (tableRef.alias || tableRef.table)
+            : null;
+
+          const label = prefix ? `${prefix}.${col.name}` : col.name;
+          const insertText = prefix ? `${prefix}.${col.name}` : col.name;
           const detail = `${col.type} - ${db}.${tableRef.table}`;
 
           columns.push({
             label,
             kind: monaco.languages.CompletionItemKind.Field,
-            insertText: col.name,
+            insertText,
             detail,
+            sortText: tracker.getSortText(`column:${db}.${tableRef.table}.${col.name}`, 'column'),
             range,
           });
         });
@@ -301,6 +350,7 @@ function getColumnSuggestions(
             kind: monaco.languages.CompletionItemKind.Field,
             insertText: col.name,
             detail: `${col.type} - ${database.name}.${table.name}`,
+            sortText: tracker.getSortText(`column:${database.name}.${table.name}.${col.name}`, 'column'),
             range,
           });
         });
@@ -317,7 +367,10 @@ function getColumnSuggestions(
 function getTableSuggestions(
   databaseName: string,
   dbStructure: Database[],
-  range: monaco.IRange
+  range: monaco.IRange,
+  isAfterDot: boolean = false,
+  existingAliases: Set<string> = new Set(),
+  includeAlias: boolean = false
 ): monaco.languages.CompletionItem[] {
   const database = dbStructure.find(
     (db) => db.name.toLowerCase() === databaseName.toLowerCase()
@@ -325,13 +378,36 @@ function getTableSuggestions(
 
   if (!database) return [];
 
-  return database.children.map((table) => ({
-    label: table.name,
-    kind: monaco.languages.CompletionItemKind.Struct,
-    insertText: table.name,
-    detail: `Table in ${database.name}`,
-    range,
-  }));
+  const tracker = getUsageTracker();
+
+  // Build a local set of aliases for this batch to avoid conflicts
+  const usedAliases = new Set(existingAliases);
+
+  return database.children.map((table) => {
+    let insertText: string;
+
+    if (isAfterDot) {
+      // User typed "db." - just complete the table name
+      insertText = table.name;
+    } else if (includeAlias) {
+      // Generate unique alias
+      const alias = generateTableAlias(table.name, usedAliases);
+      usedAliases.add(alias);
+      insertText = `${database.name}.${table.name} ${alias}`;
+    } else {
+      // Just database.table without alias
+      insertText = `${database.name}.${table.name}`;
+    }
+
+    return {
+      label: table.name,
+      kind: monaco.languages.CompletionItemKind.Struct,
+      insertText,
+      detail: `Table in ${database.name}`,
+      sortText: tracker.getSortText(`table:${database.name}.${table.name}`, 'table'),
+      range,
+    };
+  });
 }
 
 /**
@@ -341,11 +417,14 @@ function getDatabaseSuggestions(
   dbStructure: Database[],
   range: monaco.IRange
 ): monaco.languages.CompletionItem[] {
+  const tracker = getUsageTracker();
+
   return dbStructure.map((database) => ({
     label: database.name,
     kind: monaco.languages.CompletionItemKind.Module,
     insertText: database.name,
     detail: 'Database',
+    sortText: tracker.getSortText(`database:${database.name}`, 'database'),
     range,
   }));
 }
@@ -365,44 +444,99 @@ function getSuggestionsForContext(
   switch (context.clauseType) {
     case 'SELECT':
     case 'WHERE':
+    case 'PREWHERE':
     case 'GROUP_BY':
     case 'ORDER_BY':
     case 'HAVING': {
-      // Show columns from tables or selected database
-      const columnSuggestions = getColumnSuggestions(
-        context,
-        dbStructure,
-        range
-      );
-      suggestions.push(...columnSuggestions);
+      // Check if user is typing after a dot (for alias.column or table.column)
+      if (context.isAfterDot && context.databasePrefix) {
+        // Priority 1: Check if it's an alias
+        const aliasRef = findTableByAlias(context.databasePrefix, context.fromTables);
+        if (aliasRef) {
+          const db = aliasRef.database || context.selectedDatabase;
+          const table = findTable(dbStructure, db, aliasRef.table);
+          if (table && db) {
+            suggestions.push(
+              ...table.children.map((col) => ({
+                label: col.name,
+                kind: monaco.languages.CompletionItemKind.Field,
+                insertText: col.name,
+                detail: `${col.type} - ${db}.${aliasRef.table}`,
+                range,
+              }))
+            );
+          }
+        }
+        // Priority 2: Check if it's a table name
+        else {
+          const tableRef = findTableByName(context.databasePrefix, context.fromTables);
+          if (tableRef) {
+            const db = tableRef.database || context.selectedDatabase;
+            const table = findTable(dbStructure, db, tableRef.table);
+            if (table && db) {
+              suggestions.push(
+                ...table.children.map((col) => ({
+                  label: col.name,
+                  kind: monaco.languages.CompletionItemKind.Field,
+                  insertText: col.name,
+                  detail: `${col.type} - ${db}.${tableRef.table}`,
+                  range,
+                }))
+              );
+            }
+          }
+          // Priority 3: Treat as database name for database.table pattern
+          else {
+            suggestions.push(
+              ...getTableSuggestions(context.databasePrefix, dbStructure, range, true, new Set(), false)
+            );
+          }
+        }
+      } else {
+        // No dot - show columns from tables or selected database
+        const columnSuggestions = getColumnSuggestions(
+          context,
+          dbStructure,
+          range
+        );
+        suggestions.push(...columnSuggestions);
+      }
 
       // Also show functions in SELECT clause
       if (context.clauseType === 'SELECT') {
+        const tracker = getUsageTracker();
         suggestions.push(
           {
             label: '*',
             kind: monaco.languages.CompletionItemKind.Keyword,
             insertText: '*',
             detail: 'All columns',
+            sortText: tracker.getSortText('keyword:*', 'keyword'),
             range,
           },
           ...functions.map((func) => ({
             label: func,
             kind: monaco.languages.CompletionItemKind.Function,
             insertText: `${func}()`,
+            sortText: tracker.getSortText(`function:${func}`, 'function'),
             range,
           }))
         );
       }
 
-      // Show operators in WHERE/HAVING
-      if (context.clauseType === 'WHERE' || context.clauseType === 'HAVING') {
-        const operators = ['AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN'];
+      // Show operators in WHERE/HAVING/PREWHERE
+      if (context.clauseType === 'WHERE' || context.clauseType === 'HAVING' || context.clauseType === 'PREWHERE') {
+        const tracker = getUsageTracker();
+        const operators = [
+          'AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN',
+          'GLOBAL IN', 'GLOBAL NOT IN', 'ANY', 'ALL', 'ILIKE'
+        ];
         suggestions.push(
           ...operators.map((op) => ({
             label: op,
             kind: monaco.languages.CompletionItemKind.Operator,
             insertText: op,
+            sortText: tracker.getSortText(`operator:${op}`, 'operator'),
             range,
           }))
         );
@@ -410,17 +544,20 @@ function getSuggestionsForContext(
 
       // Show ASC/DESC in ORDER BY
       if (context.clauseType === 'ORDER_BY') {
+        const tracker = getUsageTracker();
         suggestions.push(
           {
             label: 'ASC',
             kind: monaco.languages.CompletionItemKind.Keyword,
             insertText: 'ASC',
+            sortText: tracker.getSortText('keyword:ASC', 'keyword'),
             range,
           },
           {
             label: 'DESC',
             kind: monaco.languages.CompletionItemKind.Keyword,
             insertText: 'DESC',
+            sortText: tracker.getSortText('keyword:DESC', 'keyword'),
             range,
           }
         );
@@ -431,22 +568,33 @@ function getSuggestionsForContext(
 
     case 'FROM':
     case 'JOIN': {
+      // Collect existing aliases from fromTables
+      const existingAliases = new Set(
+        context.fromTables
+          .map((ref) => ref.alias)
+          .filter((alias): alias is string => !!alias)
+      );
+
       if (context.isAfterDot && context.databasePrefix) {
-        // After dot: show tables from the specified database
+        // After dot: show tables from the specified database (user typed "db.")
+        // Don't add alias here since user is manually typing the database
         suggestions.push(
-          ...getTableSuggestions(context.databasePrefix, dbStructure, range)
+          ...getTableSuggestions(context.databasePrefix, dbStructure, range, true, existingAliases, false)
         );
       } else {
-        // No dot or before dot: show databases and tables
+        // No dot or before dot: show databases and tables with db prefix + alias
         suggestions.push(...getDatabaseSuggestions(dbStructure, range));
 
-        // Also show tables from selected database if any
+        // Also show tables from selected database if any - WITH aliases
         if (context.selectedDatabase) {
           suggestions.push(
             ...getTableSuggestions(
               context.selectedDatabase,
               dbStructure,
-              range
+              range,
+              false,
+              existingAliases,
+              true
             )
           );
         }
@@ -457,24 +605,47 @@ function getSuggestionsForContext(
     case 'INSERT':
     case 'UPDATE':
     case 'DELETE': {
-      // Show databases and tables
+      // Show databases and tables with db prefix (no aliases for DML)
       suggestions.push(...getDatabaseSuggestions(dbStructure, range));
 
       if (context.selectedDatabase) {
         suggestions.push(
-          ...getTableSuggestions(context.selectedDatabase, dbStructure, range)
+          ...getTableSuggestions(context.selectedDatabase, dbStructure, range, false, new Set(), false)
         );
       }
       break;
     }
 
+    case 'FORMAT': {
+      // Show ClickHouse output formats
+      const tracker = getUsageTracker();
+      const formats = [
+        'TabSeparated', 'TabSeparatedWithNames', 'TabSeparatedWithNamesAndTypes',
+        'CSV', 'CSVWithNames', 'CSVWithNamesAndTypes',
+        'JSON', 'JSONEachRow', 'JSONCompact', 'JSONCompactEachRow',
+        'Pretty', 'PrettyCompact', 'PrettySpace',
+        'Vertical', 'Values', 'XML', 'Parquet', 'Arrow', 'ORC'
+      ];
+      suggestions.push(
+        ...formats.map((format) => ({
+          label: format,
+          kind: monaco.languages.CompletionItemKind.EnumMember,
+          insertText: format,
+          detail: 'Output format',
+          sortText: tracker.getSortText(`keyword:${format}`, 'keyword'),
+          range,
+        }))
+      );
+      break;
+    }
+
     default: {
-      // For unknown contexts, show everything
+      // For unknown contexts, show everything with db prefix (no aliases)
       suggestions.push(...getDatabaseSuggestions(dbStructure, range));
 
       if (context.selectedDatabase) {
         suggestions.push(
-          ...getTableSuggestions(context.selectedDatabase, dbStructure, range)
+          ...getTableSuggestions(context.selectedDatabase, dbStructure, range, false, new Set(), false)
         );
       }
       break;
@@ -621,10 +792,12 @@ export const initializeMonacoGlobally = async () => {
         );
 
         // Add SQL keyword suggestions
+        const tracker = getUsageTracker();
         const keywordSuggestions = clickHouseKeywordsArray.map((keyword) => ({
           label: keyword,
           kind: monaco.languages.CompletionItemKind.Keyword,
           insertText: keyword,
+          sortText: tracker.getSortText(`keyword:${keyword}`, 'keyword'),
           range: range,
         }));
 
@@ -638,6 +811,38 @@ export const initializeMonacoGlobally = async () => {
         const uniqueSuggestions = Array.from(
           new Map(allSuggestions.map((s) => [s.label, s])).values()
         );
+
+        // Record pending suggestions for usage tracking
+        const suggestionData = uniqueSuggestions.map((s) => {
+          // Determine category from kind
+          let category: SuggestionCategory = 'keyword';
+          switch (s.kind) {
+            case monaco.languages.CompletionItemKind.Field:
+              category = 'column';
+              break;
+            case monaco.languages.CompletionItemKind.Struct:
+              category = 'table';
+              break;
+            case monaco.languages.CompletionItemKind.Module:
+              category = 'database';
+              break;
+            case monaco.languages.CompletionItemKind.Function:
+              category = 'function';
+              break;
+            case monaco.languages.CompletionItemKind.Operator:
+              category = 'operator';
+              break;
+            default:
+              category = 'keyword';
+          }
+
+          return {
+            label: typeof s.label === 'string' ? s.label : s.label.label,
+            category,
+          };
+        });
+
+        tracker.recordPendingSuggestions(suggestionData, range);
 
         return {
           suggestions: uniqueSuggestions,

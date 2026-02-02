@@ -39,6 +39,11 @@ export type ClauseType =
   | 'DELETE'
   | 'SET'
   | 'VALUES'
+  | 'CREATE'
+  | 'ALTER'
+  | 'DROP'
+  | 'ENGINE'
+  | 'TO'
   | 'UNKNOWN';
 
 /**
@@ -78,6 +83,7 @@ export interface SQLContext {
   databasePrefix?: string;
   tablePrefix?: string;
   selectedDatabase: string | null;
+  isSimpleSelect: boolean; // true if SELECT without FROM/WHERE/etc.
 }
 
 /**
@@ -109,6 +115,11 @@ const CLAUSE_KEYWORDS: Record<string, ClauseType> = {
   DELETE: 'DELETE',
   SET: 'SET',
   VALUES: 'VALUES',
+  CREATE: 'CREATE',
+  ALTER: 'ALTER',
+  DROP: 'DROP',
+  ENGINE: 'ENGINE',
+  TO: 'TO',
 };
 
 /**
@@ -121,6 +132,7 @@ const CLAUSE_BOUNDARY_KEYWORDS = new Set([
   'PREWHERE',
   'GROUP',
   'ORDER',
+  'BY',  // Enables GROUP BY / ORDER BY detection
   'HAVING',
   'JOIN',
   'INNER',
@@ -142,6 +154,20 @@ const CLAUSE_BOUNDARY_KEYWORDS = new Set([
   'DELETE',
   'SET',
   'VALUES',
+  // DDL keywords
+  'CREATE',
+  'ALTER',
+  'DROP',
+  'TABLE',
+  'VIEW',
+  'MATERIALIZED',
+  'DATABASE',
+  'ENGINE',
+  'TO',
+  'AS',
+  'IF',
+  'EXISTS',
+  'PARTITION',
 ]);
 
 /**
@@ -518,6 +544,16 @@ export function parseSQLContext(
   // Extract table references from FROM and JOIN clauses
   const fromTables = extractTableReferences(tokens);
 
+  // Detect if this is a simple SELECT without other clauses
+  const hasOtherClauses = tokens.some(
+    (token) =>
+      token.type === 'KEYWORD' &&
+      ['FROM', 'WHERE', 'GROUP', 'ORDER', 'HAVING', 'LIMIT', 'JOIN'].includes(
+        token.value.toUpperCase()
+      )
+  );
+  const isSimpleSelect = clauseType === 'SELECT' && !hasOtherClauses;
+
   return {
     clauseType,
     fromTables,
@@ -526,6 +562,7 @@ export function parseSQLContext(
     databasePrefix,
     tablePrefix,
     selectedDatabase,
+    isSimpleSelect,
   };
 }
 

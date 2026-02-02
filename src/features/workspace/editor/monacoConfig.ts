@@ -5,6 +5,7 @@ import { format } from "sql-formatter";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { appQueries } from "./appQueries";
 import { parseSQLContext, SQLContext, type ClauseType, generateTableAlias } from "./sqlContextParser";
+import { getAllEngines, DDL_OBJECTS } from "./clickhouseConstants";
 import useAppStore from "@/store";
 import { AutocompleteUsageTracker, type SuggestionCategory } from "./usageTracker";
 
@@ -343,12 +344,25 @@ function getColumnSuggestions(
     );
 
     if (database) {
+      // Check if we should use auto-FROM insertion
+      const useAutoFrom = context.isSimpleSelect && context.clauseType === 'SELECT';
+      const usedAliases = new Set<string>();
+
       for (const table of database.children) {
+        // Generate alias if using auto-FROM
+        const alias = useAutoFrom ? generateTableAlias(table.name, usedAliases) : null;
+        if (alias) usedAliases.add(alias);
+
         table.children.forEach((col) => {
+          // Build insertText based on whether we're using auto-FROM
+          const insertText = useAutoFrom && alias
+            ? `${alias}.${col.name} FROM ${database.name}.${table.name} ${alias}`
+            : col.name;
+
           columns.push({
             label: col.name,
             kind: monaco.languages.CompletionItemKind.Field,
-            insertText: col.name,
+            insertText,
             detail: `${col.type} - ${database.name}.${table.name}`,
             sortText: tracker.getSortText(`column:${database.name}.${table.name}.${col.name}`, 'column'),
             range,
@@ -605,13 +619,20 @@ function getSuggestionsForContext(
     case 'INSERT':
     case 'UPDATE':
     case 'DELETE': {
-      // Show databases and tables with db prefix (no aliases for DML)
-      suggestions.push(...getDatabaseSuggestions(dbStructure, range));
-
-      if (context.selectedDatabase) {
+      // Check if user typed "DB." - only show tables from that database
+      if (context.isAfterDot && context.databasePrefix) {
         suggestions.push(
-          ...getTableSuggestions(context.selectedDatabase, dbStructure, range, false, new Set(), false)
+          ...getTableSuggestions(context.databasePrefix, dbStructure, range, true, new Set(), false)
         );
+      } else {
+        // No dot - show databases and tables with db prefix (no aliases for DML)
+        suggestions.push(...getDatabaseSuggestions(dbStructure, range));
+
+        if (context.selectedDatabase) {
+          suggestions.push(
+            ...getTableSuggestions(context.selectedDatabase, dbStructure, range, false, new Set(), false)
+          );
+        }
       }
       break;
     }
@@ -636,6 +657,56 @@ function getSuggestionsForContext(
           range,
         }))
       );
+      break;
+    }
+
+    case 'CREATE':
+    case 'ALTER':
+    case 'DROP': {
+      // Show DDL object keywords (TABLE, VIEW, DATABASE, etc.)
+      suggestions.push(
+        ...DDL_OBJECTS.map((obj) => ({
+          label: obj,
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: obj,
+          detail: 'DDL object type',
+          range,
+        }))
+      );
+      // Also show databases for fully qualified names
+      suggestions.push(...getDatabaseSuggestions(dbStructure, range));
+      break;
+    }
+
+    case 'ENGINE': {
+      // Show ClickHouse table engines
+      const allEngines = getAllEngines();
+      suggestions.push(
+        ...allEngines.map((engine) => ({
+          label: engine,
+          kind: monaco.languages.CompletionItemKind.Class,
+          insertText: engine,
+          detail: 'Table engine',
+          range,
+        }))
+      );
+      break;
+    }
+
+    case 'TO': {
+      // For CREATE MATERIALIZED VIEW ... TO - show target tables
+      if (context.isAfterDot && context.databasePrefix) {
+        suggestions.push(
+          ...getTableSuggestions(context.databasePrefix, dbStructure, range, true, new Set(), false)
+        );
+      } else {
+        suggestions.push(...getDatabaseSuggestions(dbStructure, range));
+        if (context.selectedDatabase) {
+          suggestions.push(
+            ...getTableSuggestions(context.selectedDatabase, dbStructure, range, false, new Set(), false)
+          );
+        }
+      }
       break;
     }
 

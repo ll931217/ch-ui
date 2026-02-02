@@ -838,6 +838,8 @@ export const initializeMonacoGlobally = async () => {
       "ATTACH",
       "DETACH",
       "OPTIMIZE",
+      "ADD",
+      "COLUMN",
       "TABLE",
       "DATABASE",
       "VIEW",
@@ -849,6 +851,8 @@ export const initializeMonacoGlobally = async () => {
       "QUOTA",
       "TRIGGER",
       "PROCEDURE",
+      "PROJECTION",
+      "TYPE",
       // Joins
       "JOIN",
       "INNER",
@@ -879,6 +883,7 @@ export const initializeMonacoGlobally = async () => {
       "PREWHERE",
       "TO",
       "CODEC",
+      "GRANULARITY",
       // Window functions
       "OVER",
       "ROWS",
@@ -996,6 +1001,12 @@ export const initializeMonacoGlobally = async () => {
       "Enum16",
       "AggregateFunction",
       "SimpleAggregateFunction",
+      // Index types
+      "set",
+      "minmax",
+      "bloom_filter",
+      "ngrambf_v1",
+      "tokenbf_v1",
     ],
     operators: [
       "=",

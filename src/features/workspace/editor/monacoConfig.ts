@@ -820,6 +820,7 @@ export const initializeMonacoGlobally = async () => {
       "LIMIT",
       "OFFSET",
       "AS",
+      "ALIAS",
       "DISTINCT",
       "ALL",
       "TOP",

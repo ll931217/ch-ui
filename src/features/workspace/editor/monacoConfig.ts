@@ -4,6 +4,8 @@ import * as monaco from "monaco-editor";
 import { format } from "sql-formatter";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { appQueries } from "./appQueries";
+import { parseSQLContext, SQLContext, type ClauseType } from "./sqlContextParser";
+import useAppStore from "@/store";
 
 // Add this declaration to extend the Window interface
 declare global {
@@ -229,44 +231,257 @@ async function getKeywords(): Promise<string[]> {
   }
 }
 
-// Parse the SQL query to determine the context
-function parseQueryContext(
-  query: string,
-  position: monaco.Position
-): { database?: string; table?: string; isTypingDatabase: boolean } {
-  const lines = query.split("\n");
-  const currentLine = lines[position.lineNumber - 1].substring(
-    0,
-    position.column
+/**
+ * Helper function to find a table in the database structure
+ */
+function findTable(
+  dbStructure: Database[],
+  databaseName: string | null | undefined,
+  tableName: string
+): Table | null {
+  if (!databaseName) return null;
+
+  const database = dbStructure.find(
+    (db) => db.name.toLowerCase() === databaseName.toLowerCase()
   );
-  const tokens = currentLine.split(/\s+/);
+  if (!database) return null;
 
-  let database: string | undefined;
-  let table: string | undefined;
-  let isTypingDatabase = false;
+  return (
+    database.children.find(
+      (table) => table.name.toLowerCase() === tableName.toLowerCase()
+    ) || null
+  );
+}
 
-  for (let i = tokens.length - 1; i >= 0; i--) {
-    const token = tokens[i];
-    if (token.includes(".")) {
-      const parts = token.split(".");
-      if (parts.length === 2 && parts[1] === "") {
-        database = parts[0];
-        isTypingDatabase = true;
-        break;
-      } else if (parts.length === 2) {
-        [database, table] = parts;
-      } else if (parts.length === 3) {
-        [database, table] = parts.slice(0, 2);
+/**
+ * Get column suggestions based on FROM tables or selected database
+ */
+function getColumnSuggestions(
+  context: SQLContext,
+  dbStructure: Database[],
+  range: monaco.IRange
+): monaco.languages.CompletionItem[] {
+  const columns: monaco.languages.CompletionItem[] = [];
+
+  if (context.fromTables.length > 0) {
+    // FROM clause present - show columns from referenced tables only
+    for (const tableRef of context.fromTables) {
+      const db = tableRef.database || context.selectedDatabase;
+      const table = findTable(dbStructure, db, tableRef.table);
+
+      if (table && db) {
+        table.children.forEach((col) => {
+          const label = tableRef.alias
+            ? `${tableRef.alias}.${col.name}`
+            : col.name;
+          const detail = `${col.type} - ${db}.${tableRef.table}`;
+
+          columns.push({
+            label,
+            kind: monaco.languages.CompletionItemKind.Field,
+            insertText: col.name,
+            detail,
+            range,
+          });
+        });
+      }
+    }
+  } else if (context.selectedDatabase) {
+    // No FROM clause but database selected - show ALL columns from ALL tables
+    const database = dbStructure.find(
+      (db) =>
+        db.name.toLowerCase() === context.selectedDatabase?.toLowerCase()
+    );
+
+    if (database) {
+      for (const table of database.children) {
+        table.children.forEach((col) => {
+          columns.push({
+            label: col.name,
+            kind: monaco.languages.CompletionItemKind.Field,
+            insertText: col.name,
+            detail: `${col.type} - ${database.name}.${table.name}`,
+            range,
+          });
+        });
+      }
+    }
+  }
+
+  return columns;
+}
+
+/**
+ * Get table suggestions for a specific database
+ */
+function getTableSuggestions(
+  databaseName: string,
+  dbStructure: Database[],
+  range: monaco.IRange
+): monaco.languages.CompletionItem[] {
+  const database = dbStructure.find(
+    (db) => db.name.toLowerCase() === databaseName.toLowerCase()
+  );
+
+  if (!database) return [];
+
+  return database.children.map((table) => ({
+    label: table.name,
+    kind: monaco.languages.CompletionItemKind.Struct,
+    insertText: table.name,
+    detail: `Table in ${database.name}`,
+    range,
+  }));
+}
+
+/**
+ * Get database suggestions
+ */
+function getDatabaseSuggestions(
+  dbStructure: Database[],
+  range: monaco.IRange
+): monaco.languages.CompletionItem[] {
+  return dbStructure.map((database) => ({
+    label: database.name,
+    kind: monaco.languages.CompletionItemKind.Module,
+    insertText: database.name,
+    detail: 'Database',
+    range,
+  }));
+}
+
+/**
+ * Get context-aware suggestions based on SQL clause type
+ */
+function getSuggestionsForContext(
+  context: SQLContext,
+  dbStructure: Database[],
+  range: monaco.IRange,
+  keywords: string[],
+  functions: string[]
+): monaco.languages.CompletionItem[] {
+  const suggestions: monaco.languages.CompletionItem[] = [];
+
+  switch (context.clauseType) {
+    case 'SELECT':
+    case 'WHERE':
+    case 'GROUP_BY':
+    case 'ORDER_BY':
+    case 'HAVING': {
+      // Show columns from tables or selected database
+      const columnSuggestions = getColumnSuggestions(
+        context,
+        dbStructure,
+        range
+      );
+      suggestions.push(...columnSuggestions);
+
+      // Also show functions in SELECT clause
+      if (context.clauseType === 'SELECT') {
+        suggestions.push(
+          {
+            label: '*',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: '*',
+            detail: 'All columns',
+            range,
+          },
+          ...functions.map((func) => ({
+            label: func,
+            kind: monaco.languages.CompletionItemKind.Function,
+            insertText: `${func}()`,
+            range,
+          }))
+        );
+      }
+
+      // Show operators in WHERE/HAVING
+      if (context.clauseType === 'WHERE' || context.clauseType === 'HAVING') {
+        const operators = ['AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN'];
+        suggestions.push(
+          ...operators.map((op) => ({
+            label: op,
+            kind: monaco.languages.CompletionItemKind.Operator,
+            insertText: op,
+            range,
+          }))
+        );
+      }
+
+      // Show ASC/DESC in ORDER BY
+      if (context.clauseType === 'ORDER_BY') {
+        suggestions.push(
+          {
+            label: 'ASC',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'ASC',
+            range,
+          },
+          {
+            label: 'DESC',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'DESC',
+            range,
+          }
+        );
+      }
+
+      break;
+    }
+
+    case 'FROM':
+    case 'JOIN': {
+      if (context.isAfterDot && context.databasePrefix) {
+        // After dot: show tables from the specified database
+        suggestions.push(
+          ...getTableSuggestions(context.databasePrefix, dbStructure, range)
+        );
+      } else {
+        // No dot or before dot: show databases and tables
+        suggestions.push(...getDatabaseSuggestions(dbStructure, range));
+
+        // Also show tables from selected database if any
+        if (context.selectedDatabase) {
+          suggestions.push(
+            ...getTableSuggestions(
+              context.selectedDatabase,
+              dbStructure,
+              range
+            )
+          );
+        }
       }
       break;
     }
-    if (token.toLowerCase() === "from" && i + 1 < tokens.length) {
-      table = tokens[i + 1];
+
+    case 'INSERT':
+    case 'UPDATE':
+    case 'DELETE': {
+      // Show databases and tables
+      suggestions.push(...getDatabaseSuggestions(dbStructure, range));
+
+      if (context.selectedDatabase) {
+        suggestions.push(
+          ...getTableSuggestions(context.selectedDatabase, dbStructure, range)
+        );
+      }
+      break;
+    }
+
+    default: {
+      // For unknown contexts, show everything
+      suggestions.push(...getDatabaseSuggestions(dbStructure, range));
+
+      if (context.selectedDatabase) {
+        suggestions.push(
+          ...getTableSuggestions(context.selectedDatabase, dbStructure, range)
+        );
+      }
       break;
     }
   }
 
-  return { database, table, isTypingDatabase };
+  return suggestions;
 }
 
 // Initialize Monaco editor with ClickHouse SQL language features
@@ -375,92 +590,61 @@ export const initializeMonacoGlobally = async () => {
           endColumn: word.endColumn,
         };
 
+        // Get selected database from app store
+        const selectedDatabase = useAppStore.getState().selectedDatabase;
+
+        // Parse SQL context using the new context-aware parser
+        const cursorOffset = model.getOffsetAt(position);
+        const sqlContext = parseSQLContext(
+          model.getValue(),
+          cursorOffset,
+          selectedDatabase
+        );
+
+        // Fetch database structure, functions, and keywords
         const dbStructure = await getDatabasesTablesAndColumns();
-        const queryContext = parseQueryContext(model.getValue(), position);
         const clickHouseFunctionsArray = await getFunctions();
-        const clickHouseKeywordsArray = await getKeywords(); // Fetch keywords from API
+        const clickHouseKeywordsArray = await getKeywords();
 
         // Check cancellation after async calls
         if (token.isCancellationRequested) {
           return { suggestions: [] };
         }
 
-        const suggestions: monaco.languages.CompletionItem[] = [];
+        // Get context-aware suggestions
+        const contextSuggestions = getSuggestionsForContext(
+          sqlContext,
+          dbStructure,
+          range,
+          clickHouseKeywordsArray,
+          clickHouseFunctionsArray
+        );
 
-      dbStructure.forEach((database: Database) => {
-        if (
-          !queryContext.database ||
-          database.name
-            .toLowerCase()
-            .startsWith(queryContext.database.toLowerCase())
-        ) {
-          if (queryContext.isTypingDatabase || !queryContext.database) {
-            suggestions.push({
-              label: `${database.name}`,
-              kind: monaco.languages.CompletionItemKind.Module,
-              insertText: `${database.name}`,
-              detail: "Database",
-              range: range,
-            });
-          }
+        // Add SQL keyword suggestions
+        const keywordSuggestions = clickHouseKeywordsArray.map((keyword) => ({
+          label: keyword,
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: keyword,
+          range: range,
+        }));
 
-          if (
-            queryContext.isTypingDatabase ||
-            database.name === queryContext.database
-          ) {
-            database.children.forEach((table: Table) => {
-              if (
-                !queryContext.table ||
-                table.name
-                  .toLowerCase()
-                  .startsWith(queryContext.table.toLowerCase())
-              ) {
-                suggestions.push({
-                  label: `${table.name}`,
-                  kind: monaco.languages.CompletionItemKind.Struct,
-                  insertText: `${table.name}`,
-                  detail: `Table in ${database.name}`,
-                  range: range,
-                });
+        // Combine all suggestions
+        const allSuggestions = [
+          ...contextSuggestions,
+          ...keywordSuggestions,
+        ];
 
-                if (queryContext.table && table.name === queryContext.table) {
-                  table.children.forEach((column: Column) => {
-                    suggestions.push({
-                      label: `${column.name}`,
-                      kind: monaco.languages.CompletionItemKind.Field,
-                      insertText: `${column.name}`,
-                      detail: `${database.name}.${table.name}.${column.type}`,
-                      range: range,
-                    });
-                  });
-                }
-              }
-            });
-          }
-        }
-      });
-
-      // Add SQL keyword suggestions from fetched keywords
-      const keywordSuggestions = clickHouseKeywordsArray.map((keyword) => ({
-        label: keyword,
-        kind: monaco.languages.CompletionItemKind.Keyword,
-        insertText: keyword,
-        range: range,
-      }));
-
-      // Add ClickHouse functions suggestions
-      const chFunctions = clickHouseFunctionsArray.map((chFunc: string) => ({
-        label: chFunc,
-        kind: monaco.languages.CompletionItemKind.Function,
-        insertText: `${chFunc}()`,
-        range: range,
-      }));
+        // Remove duplicates based on label
+        const uniqueSuggestions = Array.from(
+          new Map(allSuggestions.map((s) => [s.label, s])).values()
+        );
 
         return {
-          suggestions: [...suggestions, ...keywordSuggestions, ...chFunctions],
+          suggestions: uniqueSuggestions,
         };
-      } catch {
+      } catch (error) {
         // Silently return empty on disposal/cancellation
+        console.error('Monaco completion error:', error);
         return { suggestions: [] };
       }
     },

@@ -1,4 +1,4 @@
-import { Moon, Sun, Palette } from "lucide-react";
+import { Palette } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,7 +9,10 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -17,13 +20,59 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useTheme } from "@/components/common/theme-provider";
 import { useAppearance } from "@/contexts/AppearanceContext";
+import { ThemePreview } from "./ThemePreview";
 
-const THEME_OPTIONS = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "high-contrast-light", label: "High Contrast Light", icon: Sun },
-  { value: "high-contrast-dark", label: "High Contrast Dark", icon: Moon },
-  { value: "system", label: "System", icon: Palette },
+const DARK_THEMES = [
+  {
+    value: "dracula",
+    label: "Dracula",
+    colors: ["#BD93F9", "#FF79C6", "#8BE9FD"],
+  },
+  { value: "nord", label: "Nord", colors: ["#88C0D0", "#81A1C1", "#5E81AC"] },
+  {
+    value: "gruvbox-dark",
+    label: "Gruvbox Dark",
+    colors: ["#FE8019", "#FABD2F", "#B8BB26"],
+  },
+  {
+    value: "tokyo-night",
+    label: "Tokyo Night",
+    colors: ["#7AA2F7", "#BB9AF7", "#7DCFFF"],
+  },
+] as const;
+
+const LIGHT_THEMES = [
+  {
+    value: "github-light",
+    label: "GitHub Light",
+    colors: ["#0969DA", "#1A7F37", "#CF222E"],
+  },
+  {
+    value: "gruvbox-light",
+    label: "Gruvbox Light",
+    colors: ["#AF3A03", "#B57614", "#79740E"],
+  },
+  {
+    value: "catppuccin-latte",
+    label: "Catppuccin Latte",
+    colors: ["#7287FD", "#EA76CB", "#179299"],
+  },
+  {
+    value: "one-light",
+    label: "One Light",
+    colors: ["#4078F2", "#C18401", "#50A14F"],
+  },
+] as const;
+
+const FONT_FAMILIES = [
+  { value: "system", label: "System Default" },
+  { value: "jetbrains-mono", label: "JetBrains Mono" },
+  { value: "fira-code", label: "Fira Code" },
+  { value: "cascadia-code", label: "Cascadia Code" },
+  { value: "source-code-pro", label: "Source Code Pro" },
+  { value: "monaco", label: "Monaco" },
+  { value: "consolas", label: "Consolas" },
+  { value: "ibm-plex-mono", label: "IBM Plex Mono" },
 ] as const;
 
 const FONT_SIZE_MIN = 8;
@@ -31,8 +80,14 @@ const FONT_SIZE_MAX = 32;
 
 export function AppearanceTab() {
   const { theme, setTheme } = useTheme();
-  const { uiFontSize, editorFontSize, setUIFontSize, setEditorFontSize } =
-    useAppearance();
+  const {
+    uiFontSize,
+    editorFontSize,
+    editorFontFamily,
+    setUIFontSize,
+    setEditorFontSize,
+    setEditorFontFamily,
+  } = useAppearance();
 
   return (
     <div className="space-y-6">
@@ -55,32 +110,72 @@ export function AppearanceTab() {
                 <SelectValue placeholder="Select theme" />
               </SelectTrigger>
               <SelectContent>
-                {THEME_OPTIONS.map((option) => {
-                  const Icon = option.icon;
-                  return (
-                    <SelectItem key={option.value} value={option.value}>
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        <span>{option.label}</span>
+                <SelectGroup>
+                  <SelectLabel>Dark Themes</SelectLabel>
+                  {DARK_THEMES.map((themeOption) => (
+                    <SelectItem key={themeOption.value} value={themeOption.value}>
+                      <div className="flex items-center">
+                        <ThemePreview colors={themeOption.colors} />
+                        <span>{themeOption.label}</span>
                       </div>
                     </SelectItem>
-                  );
-                })}
+                  ))}
+                </SelectGroup>
+                <SelectSeparator />
+                <SelectGroup>
+                  <SelectLabel>Light Themes</SelectLabel>
+                  {LIGHT_THEMES.map((themeOption) => (
+                    <SelectItem key={themeOption.value} value={themeOption.value}>
+                      <div className="flex items-center">
+                        <ThemePreview colors={themeOption.colors} />
+                        <span>{themeOption.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+                <SelectSeparator />
+                <SelectItem value="system">
+                  <div className="flex items-center">
+                    <Palette className="h-4 w-4 mr-2" />
+                    <span>System</span>
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Font Sizes */}
+      {/* Font Settings */}
       <Card className="shadow-lg border-muted">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">Font Sizes</CardTitle>
+          <CardTitle className="text-2xl font-bold">Font Settings</CardTitle>
           <CardDescription>
-            Adjust font sizes for the interface and code editor
+            Adjust font family and sizes for the interface and code editor
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Editor Font Family */}
+          <div className="space-y-2">
+            <Label htmlFor="font-family">Editor Font Family</Label>
+            <Select value={editorFontFamily} onValueChange={setEditorFontFamily}>
+              <SelectTrigger id="font-family" className="w-full">
+                <SelectValue placeholder="Select font family" />
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_FAMILIES.map((font) => (
+                  <SelectItem key={font.value} value={font.value}>
+                    {font.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Select the font family for the Monaco code editor. Fonts with
+              ligature support will have them enabled automatically.
+            </p>
+          </div>
+
           {/* UI Font Size */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">

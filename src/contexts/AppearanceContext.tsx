@@ -3,18 +3,32 @@ import { createContext, useContext, useEffect, useState } from "react";
 const STORAGE_KEYS = {
   UI_FONT_SIZE: "ch-ui-font-size",
   EDITOR_FONT_SIZE: "ch-ui-editor-font-size",
+  EDITOR_FONT_FAMILY: "ch-ui-editor-font-family",
 } as const;
 
 const DEFAULT_VALUES = {
   UI_FONT_SIZE: 14,
   EDITOR_FONT_SIZE: 14,
+  EDITOR_FONT_FAMILY: "system",
 } as const;
+
+export type EditorFontFamily =
+  | "system"
+  | "jetbrains-mono"
+  | "fira-code"
+  | "cascadia-code"
+  | "source-code-pro"
+  | "monaco"
+  | "consolas"
+  | "ibm-plex-mono";
 
 interface AppearanceSettings {
   uiFontSize: number;
   editorFontSize: number;
+  editorFontFamily: EditorFontFamily;
   setUIFontSize: (size: number) => void;
   setEditorFontSize: (size: number) => void;
+  setEditorFontFamily: (family: EditorFontFamily) => void;
 }
 
 const AppearanceContext = createContext<AppearanceSettings | undefined>(
@@ -36,6 +50,12 @@ export function AppearanceProvider({
     return stored ? parseInt(stored, 10) : DEFAULT_VALUES.EDITOR_FONT_SIZE;
   });
 
+  const [editorFontFamily, setEditorFontFamilyState] =
+    useState<EditorFontFamily>(() => {
+      const stored = localStorage.getItem(STORAGE_KEYS.EDITOR_FONT_FAMILY);
+      return (stored as EditorFontFamily) || DEFAULT_VALUES.EDITOR_FONT_FAMILY;
+    });
+
   // Apply UI font size to CSS custom property
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -54,13 +74,20 @@ export function AppearanceProvider({
     localStorage.setItem(STORAGE_KEYS.EDITOR_FONT_SIZE, size.toString());
   };
 
+  const setEditorFontFamily = (family: EditorFontFamily) => {
+    setEditorFontFamilyState(family);
+    localStorage.setItem(STORAGE_KEYS.EDITOR_FONT_FAMILY, family);
+  };
+
   return (
     <AppearanceContext.Provider
       value={{
         uiFontSize,
         editorFontSize,
+        editorFontFamily,
         setUIFontSize,
         setEditorFontSize,
+        setEditorFontFamily,
       }}
     >
       {children}

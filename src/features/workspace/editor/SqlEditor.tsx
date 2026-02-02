@@ -61,7 +61,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const usageTrackerRef = useRef<AutocompleteUsageTracker | null>(null);
   const tab = getTabById(tabId);
   const { theme } = useTheme();
-  const { editorFontSize } = useAppearance();
+  const { editorFontSize, editorFontFamily } = useAppearance();
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [queryName, setQueryName] = useState(tab?.title || "Untitled Query");
   const [selectedConnectionId, setSelectedConnectionId] = useState<string>("");
@@ -70,10 +70,11 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const [currentQueryIndex, setCurrentQueryIndex] = useState<number>(-1);
   const navigate = useNavigate();
 
-  const editorTheme = theme === "light" || theme === "high-contrast-light"
+  const lightThemes = ["github-light", "gruvbox-light", "catppuccin-latte", "one-light"];
+  const editorTheme = lightThemes.includes(theme)
     ? "vs-light"
     : "vs-dark";
-  const highlightBackground = theme === "light" || theme === "high-contrast-light"
+  const highlightBackground = lightThemes.includes(theme)
     ? "rgba(66, 153, 225, 0.08)"
     : "rgba(99, 179, 237, 0.12)";
 
@@ -129,7 +130,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     initializeMonacoGlobally();
     if (editorRef.current) {
       isDisposedRef.current = false;  // Reset disposed state
-      const editor = createMonacoEditor(editorRef.current, editorTheme, editorFontSize);
+      const editor = createMonacoEditor(editorRef.current, editorTheme, editorFontSize, editorFontFamily);
       monacoRef.current = editor;
 
       // Initialize usage tracker for this connection
@@ -219,7 +220,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
         }
       };
     }
-  }, [tabId, updateTab, editorTheme, editorFontSize]);
+  }, [tabId, updateTab, editorTheme, editorFontSize, editorFontFamily]);
 
   // Update highlight when theme changes
   useEffect(() => {
@@ -240,6 +241,24 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
       monacoRef.current.updateOptions({ fontSize: editorFontSize });
     }
   }, [editorFontSize]);
+
+  // Update editor font family when it changes
+  useEffect(() => {
+    if (monacoRef.current) {
+      const FONT_FAMILY_MAP: Record<string, string> = {
+        "system": "monospace",
+        "jetbrains-mono": "'JetBrains Mono', monospace",
+        "fira-code": "'Fira Code', monospace",
+        "cascadia-code": "'Cascadia Code', monospace",
+        "source-code-pro": "'Source Code Pro', monospace",
+        "monaco": "'Monaco', monospace",
+        "consolas": "'Consolas', monospace",
+        "ibm-plex-mono": "'IBM Plex Mono', monospace",
+      };
+      const fontFamilyValue = FONT_FAMILY_MAP[editorFontFamily] || FONT_FAMILY_MAP["system"];
+      monacoRef.current.updateOptions({ fontFamily: fontFamilyValue, fontLigatures: true });
+    }
+  }, [editorFontFamily]);
 
   const getCurrentQuery = useCallback(() => {
     if (!monacoRef.current) return "";

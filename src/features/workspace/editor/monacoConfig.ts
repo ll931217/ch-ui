@@ -1440,12 +1440,27 @@ export const initializeMonacoGlobally = async () => {
   isInitialized = true;
 };
 
+// Font family mappings
+const FONT_FAMILY_MAP: Record<string, string> = {
+  "system": "monospace",
+  "jetbrains-mono": "'JetBrains Mono', monospace",
+  "fira-code": "'Fira Code', monospace",
+  "cascadia-code": "'Cascadia Code', monospace",
+  "source-code-pro": "'Source Code Pro', monospace",
+  "monaco": "'Monaco', monospace",
+  "consolas": "'Consolas', monospace",
+  "ibm-plex-mono": "'IBM Plex Mono', monospace",
+};
+
 // Create a Monaco Editor instance
 export const createMonacoEditor = (
   container: HTMLElement,
   theme: string,
-  fontSize: number = 14
+  fontSize: number = 14,
+  fontFamily: string = "system"
 ): monaco.editor.IStandaloneCodeEditor => {
+  const fontFamilyValue = FONT_FAMILY_MAP[fontFamily] || FONT_FAMILY_MAP["system"];
+
   const editor = monaco.editor.create(container, {
     language: "sql",
     theme: theme || "vs-dark",
@@ -1457,6 +1472,8 @@ export const createMonacoEditor = (
     quickSuggestions: true,
     wordBasedSuggestions: "off",
     fontSize: fontSize,
+    fontFamily: fontFamilyValue,
+    fontLigatures: true,
   });
 
   return editor;

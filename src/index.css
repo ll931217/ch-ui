@@ -631,6 +631,35 @@
   filter: none !important;
 }
 
+/* Theme-specific fixes for Tokyo Night and Gruvbox Dark */
+.tokyo-night .ag-theme-balham-dark .ag-row-selected {
+  background-color: hsl(230 25% 25%) !important;
+}
+
+.tokyo-night .ag-theme-balham-dark .ag-row-selected .ag-cell {
+  color: hsl(210 40% 98%) !important;
+  font-weight: 700 !important;
+  background-color: transparent !important;
+}
+
+.tokyo-night .ag-theme-balham-dark .ag-row-selected:hover {
+  background-color: hsl(230 25% 30%) !important;
+}
+
+.gruvbox-dark .ag-theme-balham-dark .ag-row-selected {
+  background-color: hsl(43 10% 35%) !important;
+}
+
+.gruvbox-dark .ag-theme-balham-dark .ag-row-selected .ag-cell {
+  color: hsl(49 85% 88%) !important;
+  font-weight: 700 !important;
+  background-color: transparent !important;
+}
+
+.gruvbox-dark .ag-theme-balham-dark .ag-row-selected:hover {
+  background-color: hsl(43 10% 40%) !important;
+}
+
 /* Row number column hover effect */
 .row-number-cell:hover {
   background-color: hsl(var(--accent)) !important;

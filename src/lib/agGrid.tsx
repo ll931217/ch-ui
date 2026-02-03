@@ -1,5 +1,7 @@
 import React from "react";
 import { ColDef, ICellRendererParams, GridOptions, ColumnPinnedType } from "ag-grid-community";
+import { themeBalham, colorSchemeDark } from "ag-grid-community";
+import { Theme, isLightTheme } from "@/components/common/theme-provider";
 
 /**
  * Performance thresholds for dynamic AG Grid configuration
@@ -118,5 +120,30 @@ export const applyPinnedState = <T = any>(
       return { ...colDef, pinned: pinnedValue };
     }
     return colDef;
+  });
+};
+
+const getCssVarAsHsl = (varName: string): string => {
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(varName)
+    .trim();
+  return value ? `hsl(${value})` : "";
+};
+
+export const createAgGridTheme = (theme: Theme) => {
+  const isLight = isLightTheme(theme);
+  const baseTheme = isLight ? themeBalham : themeBalham.withPart(colorSchemeDark);
+
+  return baseTheme.withParams({
+    backgroundColor: getCssVarAsHsl("--background"),
+    foregroundColor: getCssVarAsHsl("--foreground"),
+    borderColor: getCssVarAsHsl("--border"),
+    chromeBackgroundColor: getCssVarAsHsl("--muted"),
+    headerBackgroundColor: getCssVarAsHsl("--muted"),
+    headerTextColor: getCssVarAsHsl("--foreground"),
+    rowHoverColor: getCssVarAsHsl("--accent"),
+    selectedRowBackgroundColor: getCssVarAsHsl("--accent"),
+    oddRowBackgroundColor: getCssVarAsHsl("--background"),
+    modalOverlayBackgroundColor: getCssVarAsHsl("--background"),
   });
 };

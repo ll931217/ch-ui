@@ -20,6 +20,7 @@ const draculaTheme: MonacoThemeData = {
     { foreground: "50fa7b", token: "entity.name.class" },
     { foreground: "ffb86c", fontStyle: "italic", token: "variable.parameter" },
     { foreground: "8be9fd", token: "support.function" },
+    { foreground: "ff79c6", token: "predefined" },
     { foreground: "ff79c6", token: "entity.name.tag" },
     { foreground: "50fa7b", token: "entity.other.attribute-name" },
     // SQL-specific tokens
@@ -56,6 +57,7 @@ const nordTheme: MonacoThemeData = {
     { foreground: "81a1c1", token: "entity.name.tag" },
     { foreground: "8fbcbb", token: "entity.other.attribute-name" },
     { foreground: "88c0d0", token: "support.function" },
+    { foreground: "81a1c1", token: "predefined" },
     { foreground: "ebcb8b", token: "constant.character.escape" },
   ],
   colors: {
@@ -87,6 +89,7 @@ const gruvboxDarkTheme: MonacoThemeData = {
     { foreground: "8ec07c", token: "entity.name.tag" },
     { foreground: "fabd2f", token: "entity.other.attribute-name" },
     { foreground: "8ec07c", token: "support.function" },
+    { foreground: "fb4934", token: "predefined" },
     { foreground: "fe8019", token: "constant.character.escape" },
   ],
   colors: {
@@ -118,6 +121,7 @@ const tokyoNightTheme: MonacoThemeData = {
     { foreground: "f7768e", token: "entity.name.tag" },
     { foreground: "73daca", token: "entity.other.attribute-name" },
     { foreground: "7dcfff", token: "support.function" },
+    { foreground: "bb9af7", token: "predefined" },
     { foreground: "89ddff", token: "constant.character.escape" },
   ],
   colors: {
@@ -149,6 +153,7 @@ const githubLightTheme: MonacoThemeData = {
     { foreground: "22863a", token: "entity.name.tag" },
     { foreground: "6f42c1", token: "entity.other.attribute-name" },
     { foreground: "005cc5", token: "support.function" },
+    { foreground: "6f42c1", token: "predefined" },
     { foreground: "005cc5", token: "variable" },
   ],
   colors: {
@@ -180,6 +185,7 @@ const gruvboxLightTheme: MonacoThemeData = {
     { foreground: "427b58", token: "entity.name.tag" },
     { foreground: "b57614", token: "entity.other.attribute-name" },
     { foreground: "427b58", token: "support.function" },
+    { foreground: "427b58", token: "predefined" },
     { foreground: "af3a03", token: "constant.character.escape" },
   ],
   colors: {
@@ -211,6 +217,7 @@ const catppuccinLatteTheme: MonacoThemeData = {
     { foreground: "179299", token: "entity.name.tag" },
     { foreground: "df8e1d", token: "entity.other.attribute-name" },
     { foreground: "04a5e5", token: "support.function" },
+    { foreground: "1e66f5", token: "predefined" },
     { foreground: "dd7878", token: "constant.character.escape" },
   ],
   colors: {
@@ -242,6 +249,7 @@ const oneLightTheme: MonacoThemeData = {
     { foreground: "e45649", token: "entity.name.tag" },
     { foreground: "c18401", token: "entity.other.attribute-name" },
     { foreground: "0184bc", token: "support.function" },
+    { foreground: "0184bc", token: "predefined" },
     { foreground: "986801", token: "constant.character.escape" },
   ],
   colors: {

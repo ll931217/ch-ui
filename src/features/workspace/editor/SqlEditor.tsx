@@ -7,6 +7,7 @@ import {
   initializeMonacoGlobally,
   createMonacoEditor,
 } from "@/features/workspace/editor/monacoConfig";
+import { initVimMode, VimMode, VimModeInstance } from "monaco-vim";
 import { getMonacoTheme, isLightTheme } from "@/features/workspace/editor/monacoThemes";
 import { AutocompleteUsageTracker } from "@/features/workspace/editor/usageTracker";
 import { Button } from "@/components/ui/button";
@@ -56,13 +57,15 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const { connections, activeConnectionId, getDatabasesForConnection } = useConnectionStore();
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const vimModeRef = useRef<VimModeInstance | null>(null);
+  const statusBarRef = useRef<HTMLDivElement | null>(null);
   const decorationsRef = useRef<string[]>([]);
-  const isDisposedRef = useRef(false);           // Track disposed state
-  const highlightTimeoutRef = useRef<number>();  // Track pending timeout
+  const isDisposedRef = useRef(false);
+  const highlightTimeoutRef = useRef<number>();
   const usageTrackerRef = useRef<AutocompleteUsageTracker | null>(null);
   const tab = getTabById(tabId);
   const { theme } = useTheme();
-  const { editorFontSize, editorFontFamily } = useAppearance();
+  const { editorFontSize, editorFontFamily, editorVimMode } = useAppearance();
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [queryName, setQueryName] = useState(tab?.title || "Untitled Query");
   const [selectedConnectionId, setSelectedConnectionId] = useState<string>("");
@@ -76,7 +79,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     ? "rgba(66, 153, 225, 0.08)"
     : "rgba(99, 179, 237, 0.12)";
 
-  // Parse queries when content changes
   const updateParsedQueries = useCallback(() => {
     if (isDisposedRef.current || !monacoRef.current) return [];
     const content = monacoRef.current.getValue();
@@ -85,7 +87,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     return queries;
   }, []);
 
-  // Update current query highlighting based on cursor position
   const updateCurrentQueryHighlight = useCallback(() => {
     if (isDisposedRef.current || !monacoRef.current) return;
 
@@ -96,7 +97,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     const queryIndex = findQueryAtCursor(queries, position.lineNumber, position.column);
     setCurrentQueryIndex(queryIndex);
 
-    // Update decorations
     if (queryIndex >= 0 && queries[queryIndex]) {
       const query = queries[queryIndex];
       const newDecorations = monacoRef.current.deltaDecorations(
@@ -118,150 +118,14 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
       );
       decorationsRef.current = newDecorations;
     } else {
-      // Clear decorations if no query at cursor
       const newDecorations = monacoRef.current.deltaDecorations(decorationsRef.current, []);
       decorationsRef.current = newDecorations;
     }
   }, [parsedQueries, updateParsedQueries]);
 
-  useEffect(() => {
-    initializeMonacoGlobally();
-    if (editorRef.current) {
-      isDisposedRef.current = false;  // Reset disposed state
-      const editor = createMonacoEditor(editorRef.current, editorTheme, editorFontSize, editorFontFamily);
-      monacoRef.current = editor;
-
-      // Initialize usage tracker for this connection
-      const connectionId = activeConnectionId || 'default';
-      if (!usageTrackerRef.current) {
-        usageTrackerRef.current = new AutocompleteUsageTracker(connectionId);
-      } else {
-        usageTrackerRef.current.setConnection(connectionId);
-      }
-
-      if (tab?.content) {
-        const content = typeof tab.content === "string" ? tab.content : "";
-        editor.setValue(content);
-      }
-
-      // Initial parse
-      const initialQueries = parseQueries(editor.getValue());
-      setParsedQueries(initialQueries);
-
-      const changeListener = editor.onDidChangeModelContent((event) => {
-        const newContent = editor.getValue();
-        updateTab(tabId, { content: newContent });
-        updateParsedQueries();
-        // Track timeout for cleanup
-        highlightTimeoutRef.current = window.setTimeout(updateCurrentQueryHighlight, 0);
-
-        // Track accepted autocomplete suggestions
-        if (usageTrackerRef.current) {
-          usageTrackerRef.current.checkForAcceptedSuggestion(event, editor.getModel());
-        }
-      });
-
-      // Track cursor position changes
-      const cursorListener = editor.onDidChangeCursorPosition(() => {
-        updateCurrentQueryHighlight();
-      });
-
-      // Run current query with Ctrl/Cmd+Enter
-      editor.addCommand(
-        monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
-        handleRunQuery
-      );
-
-      // Run all queries with Ctrl/Cmd+Shift+Enter
-      editor.addCommand(
-        monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter,
-        handleRunAllQueries
-      );
-
-      // Save query with Ctrl/Cmd+S
-      editor.addCommand(
-        monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
-        () => {
-          hanldeSaveOpenDialog();
-        }
-      );
-
-      // Add CSS for highlight decoration
-      const styleId = `query-highlight-style-${tabId}`;
-      if (!document.getElementById(styleId)) {
-        const style = document.createElement("style");
-        style.id = styleId;
-        style.textContent = `
-          .${HIGHLIGHT_DECORATION_CLASS} {
-            background-color: ${highlightBackground} !important;
-          }
-        `;
-        document.head.appendChild(style);
-      }
-
-      return () => {
-        // Clear pending timeout first
-        if (highlightTimeoutRef.current) {
-          clearTimeout(highlightTimeoutRef.current);
-        }
-        // Mark as disposed before any disposal
-        isDisposedRef.current = true;
-        changeListener.dispose();
-        cursorListener.dispose();
-        editor.dispose();
-        // Clear the ref
-        monacoRef.current = null;
-        // Clean up style element
-        const styleElement = document.getElementById(styleId);
-        if (styleElement) {
-          styleElement.remove();
-        }
-      };
-    }
-  }, [tabId, updateTab, editorTheme, editorFontSize, editorFontFamily]);
-
-  // Update highlight when theme changes
-  useEffect(() => {
-    const styleId = `query-highlight-style-${tabId}`;
-    const styleElement = document.getElementById(styleId);
-    if (styleElement) {
-      styleElement.textContent = `
-        .${HIGHLIGHT_DECORATION_CLASS} {
-          background-color: ${highlightBackground} !important;
-        }
-      `;
-    }
-  }, [highlightBackground, tabId]);
-
-  // Update editor font size when it changes
-  useEffect(() => {
-    if (monacoRef.current) {
-      monacoRef.current.updateOptions({ fontSize: editorFontSize });
-    }
-  }, [editorFontSize]);
-
-  // Update editor font family when it changes
-  useEffect(() => {
-    if (monacoRef.current) {
-      const FONT_FAMILY_MAP: Record<string, string> = {
-        "system": "monospace",
-        "jetbrains-mono": "'JetBrains Mono', monospace",
-        "fira-code": "'Fira Code', monospace",
-        "cascadia-code": "'Cascadia Code', monospace",
-        "source-code-pro": "'Source Code Pro', monospace",
-        "monaco": "'Monaco', monospace",
-        "consolas": "'Consolas', monospace",
-        "ibm-plex-mono": "'IBM Plex Mono', monospace",
-      };
-      const fontFamilyValue = FONT_FAMILY_MAP[editorFontFamily] || FONT_FAMILY_MAP["system"];
-      monacoRef.current.updateOptions({ fontFamily: fontFamilyValue, fontLigatures: true });
-    }
-  }, [editorFontFamily]);
-
   const getCurrentQuery = useCallback(() => {
     if (!monacoRef.current) return "";
 
-    // Check for selection first
     const selection = monacoRef.current.getSelection();
     const model = monacoRef.current.getModel();
 
@@ -269,7 +133,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
       return model.getValueInRange(selection);
     }
 
-    // If no selection, get the query at cursor position
     const position = monacoRef.current.getPosition();
     if (position) {
       const queries = parsedQueries.length > 0 ? parsedQueries : updateParsedQueries();
@@ -279,7 +142,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
       }
     }
 
-    // Fallback to entire content if no query found
     return monacoRef.current.getValue();
   }, [parsedQueries, updateParsedQueries]);
 
@@ -304,30 +166,25 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
       return;
     }
     if (queries.length === 1) {
-      // Single query - just run it normally
       onRunQuery(queries[0]);
       return;
     }
     if (onRunAllQueries) {
       onRunAllQueries(queries);
     } else {
-      // Fallback: run queries sequentially
       onRunQuery(queries.join('; '));
     }
   }, [getAllQueries, onRunQuery, onRunAllQueries]);
 
   const hanldeSaveOpenDialog = async () => {
-    // Pre-fill the query name with the current tab title
     if (tab?.title) {
       setQueryName(tab.title);
     }
 
-    // For saved queries, fetch and use saved connection/database
     if (tab?.isSaved) {
       try {
         const savedQuery = await getSavedQueryById(tabId);
         if (savedQuery) {
-          // Validate connection still exists
           const connectionExists = connections.some(
             (conn) => conn.id === savedQuery.connectionId
           );
@@ -344,11 +201,9 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
       }
     }
 
-    // Default: use current workspace connection/database (existing logic)
     const currentConnectionId = activeConnectionId || "";
     setSelectedConnectionId(currentConnectionId);
 
-    // Get available databases for the current connection
     let databases: string[] = [];
     if (currentConnectionId) {
       if (currentConnectionId === activeConnectionId) {
@@ -358,7 +213,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
       }
     }
 
-    // Set database - only if there's a connection, a selected database, and it's in the list
     const currentDatabase =
       selectedDatabase && currentConnectionId && databases.includes(selectedDatabase)
         ? selectedDatabase
@@ -368,20 +222,211 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     setIsSaveDialogOpen(true);
   };
 
+  useEffect(() => {
+    initializeMonacoGlobally();
+    if (editorRef.current) {
+      isDisposedRef.current = false;
+      const editor = createMonacoEditor(editorRef.current, editorTheme, editorFontSize, editorFontFamily);
+      monacoRef.current = editor;
+
+      const connectionId = activeConnectionId || 'default';
+      if (!usageTrackerRef.current) {
+        usageTrackerRef.current = new AutocompleteUsageTracker(connectionId);
+      } else {
+        usageTrackerRef.current.setConnection(connectionId);
+      }
+
+      if (tab?.content) {
+        const content = typeof tab.content === "string" ? tab.content : "";
+        editor.setValue(content);
+      }
+
+      const initialQueries = parseQueries(editor.getValue());
+      setParsedQueries(initialQueries);
+
+      const changeListener = editor.onDidChangeModelContent((event) => {
+        const newContent = editor.getValue();
+        updateTab(tabId, { content: newContent });
+        updateParsedQueries();
+        highlightTimeoutRef.current = window.setTimeout(updateCurrentQueryHighlight, 0);
+
+        if (usageTrackerRef.current) {
+          usageTrackerRef.current.checkForAcceptedSuggestion(event, editor.getModel());
+        }
+      });
+
+      const cursorListener = editor.onDidChangeCursorPosition(() => {
+        updateCurrentQueryHighlight();
+      });
+
+      editor.addCommand(
+        monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
+        handleRunQuery
+      );
+
+      editor.addCommand(
+        monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter,
+        handleRunAllQueries
+      );
+
+      editor.addCommand(
+        monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+        () => {
+          hanldeSaveOpenDialog();
+        }
+      );
+
+      const styleId = `query-highlight-style-${tabId}`;
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement("style");
+        style.id = styleId;
+        style.textContent = `
+          .${HIGHLIGHT_DECORATION_CLASS} {
+            background-color: ${highlightBackground} !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      return () => {
+        if (highlightTimeoutRef.current) {
+          clearTimeout(highlightTimeoutRef.current);
+        }
+        isDisposedRef.current = true;
+        changeListener.dispose();
+        cursorListener.dispose();
+        editor.dispose();
+        monacoRef.current = null;
+        const styleElement = document.getElementById(styleId);
+        if (styleElement) {
+          styleElement.remove();
+        }
+
+        if (vimModeRef.current) {
+          vimModeRef.current.dispose();
+          vimModeRef.current = null;
+        }
+      };
+    }
+  }, [tabId, updateTab, editorTheme, editorFontSize, editorFontFamily, editorVimMode]);
+
+  useEffect(() => {
+    const styleId = `query-highlight-style-${tabId}`;
+    const styleElement = document.getElementById(styleId);
+    if (styleElement) {
+      styleElement.textContent = `
+        .${HIGHLIGHT_DECORATION_CLASS} {
+          background-color: ${highlightBackground} !important;
+        }
+      `;
+    }
+  }, [highlightBackground, tabId]);
+
+  useEffect(() => {
+    if (monacoRef.current) {
+      monacoRef.current.updateOptions({ fontSize: editorFontSize });
+    }
+  }, [editorFontSize]);
+
+  useEffect(() => {
+    if (monacoRef.current) {
+      const FONT_FAMILY_MAP: Record<string, string> = {
+        "system": "monospace",
+        "jetbrains-mono": "'JetBrains Mono', monospace",
+        "fira-code": "'Fira Code', monospace",
+        "cascadia-code": "'Cascadia Code', monospace",
+        "source-code-pro": "'Source Code Pro', monospace",
+        "monaco": "'Monaco', monospace",
+        "consolas": "'Consolas', monospace",
+        "ibm-plex-mono": "'IBM Plex Mono', monospace",
+      };
+      const fontFamilyValue = FONT_FAMILY_MAP[editorFontFamily] || FONT_FAMILY_MAP["system"];
+      monacoRef.current.updateOptions({ fontFamily: fontFamilyValue, fontLigatures: true });
+    }
+  }, [editorFontFamily]);
+
+  useEffect(() => {
+    if (monacoRef.current) {
+      if (editorVimMode) {
+        if (!statusBarRef.current) {
+          console.error("Vim status bar ref not available.");
+          return;
+        }
+
+        vimModeRef.current = initVimMode(monacoRef.current, statusBarRef.current);
+
+        VimMode.Vim.defineEx('w', 'w', () => {
+          hanldeSaveOpenDialog();
+        });
+
+        VimMode.Vim.defineEx('run', 'run', () => {
+          handleRunQuery();
+        });
+        
+        VimMode.Vim.defineEx('runall', 'runall', () => {
+          handleRunAllQueries();
+        });
+
+        VimMode.Vim.defineOperator('surround', (cm, args, ranges) => {
+          const char = args.char;
+          if (!char) return;
+
+          const replacements: { from: string; to: string }[] = [];
+          cm.eachSelection((selection: any) => {
+            const selectedText = cm.getRange(selection.from(), selection.to());
+            let from = '\'' + char;
+            let to = '\'' + char;
+
+            if (char === 'b') { from = '('; to = ')'; }
+            else if (char === 'B') { from = '{'; to = '}'; }
+            else if (char === '[') { from = '['; to = ']'; }
+            
+            replacements.push({
+              from: selectedText,
+              to: from + selectedText + to,
+            });
+          });
+
+          cm.replaceSelections(replacements.map(r => r.to));
+        });
+
+        VimMode.Vim.mapCommand('<leader>sa', 'operator', 'surround', {});
+        VimMode.Vim.mapCommand('gsd', 'operator', 'surround', { char: "'" });
+        VimMode.Vim.mapCommand('gsr', 'operator', 'surround', { char: "`" });
+
+        monacoRef.current.updateOptions({ lineNumbers: "relative" });
+
+        return () => {
+          if (vimModeRef.current) {
+            vimModeRef.current.dispose();
+            vimModeRef.current = null;
+          }
+          if (monacoRef.current && !isDisposedRef.current) {
+             monacoRef.current.updateOptions({ lineNumbers: "on" });
+          }
+        };
+      } else if (vimModeRef.current) {
+        vimModeRef.current.dispose();
+        vimModeRef.current = null;
+        if (monacoRef.current && !isDisposedRef.current) {
+          monacoRef.current.updateOptions({ lineNumbers: "on" });
+        }
+      }
+    }
+   }, [editorVimMode, handleRunQuery, handleRunAllQueries, hanldeSaveOpenDialog]);
+
   const handleConnectionChange = (connectionId: string) => {
     setSelectedConnectionId(connectionId);
-    setSelectedDatabaseName(""); // Reset database when connection changes
+    setSelectedDatabaseName("");
   };
 
   const availableDatabases = useMemo(() => {
     if (!selectedConnectionId) return [];
 
-    // If selected connection is the active one, use dataBaseExplorer (fresh data)
     if (selectedConnectionId === activeConnectionId) {
       return dataBaseExplorer.map((db) => db.name);
     }
 
-    // Otherwise, try to get cached databases for that connection
     return getDatabasesForConnection(selectedConnectionId);
   }, [selectedConnectionId, activeConnectionId, dataBaseExplorer, getDatabasesForConnection]);
 
@@ -405,11 +450,9 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
 
     try {
       if (tab?.isSaved) {
-        // Update existing saved query
         await updateSavedQuery(tabId, queryName, query, selectedConnectionId, selectedDatabaseName);
         toast.success("Query updated!");
       } else {
-        // Save new query
         await saveQuery(tabId, queryName, query, selectedConnectionId, selectedDatabaseName);
         toast.success("Query saved!");
       }
@@ -484,15 +527,20 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{tab.isSaved ? "Update saved query" : "Save query"}</p>
+                <p>{tab.isSaved ? "Update saved query" : "Save query"} (Ctrl+S)</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
       </div>
       <div ref={editorRef} className="flex-1" />
+      {editorVimMode && (
+        <div
+          ref={statusBarRef}
+          className="vim-status-bar h-6 bg-muted text-muted-foreground text-sm px-2 flex items-center shrink-0"
+        />
+      )}
 
-      {/* Save Query Dialog */}
       <AlertDialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -502,7 +550,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="grid gap-4">
-            {/* Query Name */}
             <div className="space-y-2">
               <Label htmlFor="query-name">Query Name</Label>
               <Input
@@ -514,7 +561,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
               />
             </div>
 
-            {/* Connection Selector */}
             <div className="space-y-2">
               <Label htmlFor="connection">Connection</Label>
               <Select value={selectedConnectionId} onValueChange={handleConnectionChange}>
@@ -531,7 +577,6 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
               </Select>
             </div>
 
-            {/* Database Selector */}
             <div className="space-y-2">
               <Label htmlFor="database">Database (optional)</Label>
               <Select

@@ -1,4 +1,5 @@
-import { Palette, Monitor } from "lucide-react";
+import { Palette, Monitor, Terminal } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -81,9 +82,11 @@ export function AppearanceTab() {
     uiFontSize,
     editorFontSize,
     editorFontFamily,
+    editorVimMode,
     setUIFontSize,
     setEditorFontSize,
     setEditorFontFamily,
+    setEditorVimMode,
   } = useAppearance();
 
   return (
@@ -149,7 +152,40 @@ export function AppearanceTab() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+      </Card>
+
+      {/* Editor Settings */}
+      <Card className="shadow-lg border-muted">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold flex items-center gap-2">
+            <Terminal className="h-6 w-6 text-primary" />
+            Editor Settings
+          </CardTitle>
+          <CardDescription>
+            Configure advanced editor behavior and keybindings
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Vim Mode Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="vim-mode" className="text-sm font-medium">
+                Vim Mode
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Enable vim keybindings in the SQL editor. Includes motions, modes,
+                surround operations (gsa/gsr/gsd), and relative line numbers.
+              </p>
+            </div>
+            <Switch
+              id="vim-mode"
+              checked={editorVimMode}
+              onCheckedChange={setEditorVimMode}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
           </div>
         </CardContent>
       </Card>

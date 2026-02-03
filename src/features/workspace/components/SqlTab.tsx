@@ -8,11 +8,11 @@ import {
   GridApi,
   ColumnPinnedType,
 } from "ag-grid-community";
-import { themeBalham, colorSchemeDark } from "ag-grid-community";
 import {
   createDefaultColDef,
   createGridOptions,
   PinnedColumnsState,
+  createAgGridTheme,
 } from "@/lib/agGrid";
 import AgGridHeaderContextMenu from "@/components/common/AgGridHeaderContextMenu";
 
@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { useTheme, isLightTheme } from "@/components/common/theme-provider";
+import { useTheme } from "@/components/common/theme-provider";
 import DownloadDialog from "@/components/common/DownloadDialog";
 import EmptyQueryResult from "./EmptyQueryResult";
 import StatisticsDisplay from "./StatisticsDisplay";
@@ -57,8 +57,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("results");
 
-  const gridTheme =
-    isLightTheme(theme) ? themeBalham : themeBalham.withPart(colorSchemeDark);
+  const gridTheme = createAgGridTheme(theme);
 
   // AG Grid configuration
   const defaultColDef = useMemo(() => createDefaultColDef(), []);
@@ -353,7 +352,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
         onValueChange={setActiveTab}
         className="h-full flex flex-col"
       >
-        <TabsList className="rounded-none border-b px-4">
+        <TabsList className="rounded-none border-b gap-1 pr-4">
           <TabsTrigger value="results">
             Results
             {hasData && (

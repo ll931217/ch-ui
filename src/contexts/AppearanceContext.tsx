@@ -4,12 +4,14 @@ const STORAGE_KEYS = {
   UI_FONT_SIZE: "ch-ui-font-size",
   EDITOR_FONT_SIZE: "ch-ui-editor-font-size",
   EDITOR_FONT_FAMILY: "ch-ui-editor-font-family",
+  EDITOR_VIM_MODE: "ch-ui-editor-vim-mode",
 } as const;
 
 const DEFAULT_VALUES = {
   UI_FONT_SIZE: 14,
   EDITOR_FONT_SIZE: 14,
   EDITOR_FONT_FAMILY: "system",
+  EDITOR_VIM_MODE: false,
 } as const;
 
 export type EditorFontFamily =
@@ -26,9 +28,11 @@ interface AppearanceSettings {
   uiFontSize: number;
   editorFontSize: number;
   editorFontFamily: EditorFontFamily;
+  editorVimMode: boolean;
   setUIFontSize: (size: number) => void;
   setEditorFontSize: (size: number) => void;
   setEditorFontFamily: (family: EditorFontFamily) => void;
+  setEditorVimMode: (enabled: boolean) => void;
 }
 
 const AppearanceContext = createContext<AppearanceSettings | undefined>(
@@ -56,6 +60,11 @@ export function AppearanceProvider({
       return (stored as EditorFontFamily) || DEFAULT_VALUES.EDITOR_FONT_FAMILY;
     });
 
+  const [editorVimMode, setEditorVimModeState] = useState<boolean>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.EDITOR_VIM_MODE);
+    return stored === "true";
+  });
+
   // Apply UI font size to CSS custom property
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -79,15 +88,22 @@ export function AppearanceProvider({
     localStorage.setItem(STORAGE_KEYS.EDITOR_FONT_FAMILY, family);
   };
 
+  const setEditorVimMode = (enabled: boolean) => {
+    setEditorVimModeState(enabled);
+    localStorage.setItem(STORAGE_KEYS.EDITOR_VIM_MODE, enabled.toString());
+  };
+
   return (
     <AppearanceContext.Provider
       value={{
         uiFontSize,
         editorFontSize,
         editorFontFamily,
+        editorVimMode,
         setUIFontSize,
         setEditorFontSize,
         setEditorFontFamily,
+        setEditorVimMode,
       }}
     >
       {children}

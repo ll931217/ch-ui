@@ -1,14 +1,22 @@
 import React, { useState, useMemo, useRef, useCallback } from "react";
 import { CheckCircle, XCircle } from "lucide-react";
 import { AgGridReact } from "ag-grid-react";
-import { ColDef, AllCommunityModule, ColumnPinnedType } from "ag-grid-community";
-import { themeBalham, colorSchemeDark } from "ag-grid-community";
-import { createDefaultColDef, createGridOptions, PinnedColumnsState } from "@/lib/agGrid";
+import {
+  ColDef,
+  AllCommunityModule,
+  ColumnPinnedType,
+} from "ag-grid-community";
+import {
+  createDefaultColDef,
+  createGridOptions,
+  PinnedColumnsState,
+  createAgGridTheme,
+} from "@/lib/agGrid";
 import AgGridHeaderContextMenu from "@/components/common/AgGridHeaderContextMenu";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { useTheme, isLightTheme } from "@/components/common/theme-provider";
+import { useTheme } from "@/components/common/theme-provider";
 import DownloadDialog from "@/components/common/DownloadDialog";
 import EmptyQueryResult from "./EmptyQueryResult";
 import StatisticsDisplay from "./StatisticsDisplay";
@@ -39,18 +47,20 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
   onResultIndexChange,
 }) => {
   const { theme } = useTheme();
-  const [selectedResultIndex, setSelectedResultIndex] = useState(activeResultIndex);
+  const [selectedResultIndex, setSelectedResultIndex] =
+    useState(activeResultIndex);
   const [activeTab, setActiveTab] = useState<string>("results");
 
-  const gridTheme =
-    isLightTheme(theme) ? themeBalham : themeBalham.withPart(colorSchemeDark);
+  const gridTheme = createAgGridTheme(theme);
 
   const defaultColDef = useMemo(() => createDefaultColDef(), []);
   const gridRef = useRef<AgGridReact<IRow>>(null);
   const metaGridRef = useRef<AgGridReact<any>>(null);
 
-  const [pinnedColumnsState, setPinnedColumnsState] = useState<PinnedColumnsState>({});
-  const [metaPinnedColumnsState, setMetaPinnedColumnsState] = useState<PinnedColumnsState>({});
+  const [pinnedColumnsState, setPinnedColumnsState] =
+    useState<PinnedColumnsState>({});
+  const [metaPinnedColumnsState, setMetaPinnedColumnsState] =
+    useState<PinnedColumnsState>({});
 
   // Column pinning and manipulation callbacks
   const handlePinColumn = useCallback(
@@ -67,7 +77,7 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
         });
       }
     },
-    []
+    [],
   );
 
   const handleAutoSizeColumn = useCallback((colId: string) => {
@@ -100,7 +110,7 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
         });
       }
     },
-    []
+    [],
   );
 
   const handleMetaAutoSizeColumn = useCallback((colId: string) => {
@@ -127,28 +137,38 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
   const currentResult = results[selectedResultIndex];
 
   const { columnDefs, rowData } = useMemo(() => {
-    if (!currentResult?.result?.data?.length || !currentResult?.result?.meta?.length) {
+    if (
+      !currentResult?.result?.data?.length ||
+      !currentResult?.result?.meta?.length
+    ) {
       return { columnDefs: [], rowData: [] };
     }
 
-    const colDefs: ColDef<IRow>[] = currentResult.result.meta.map((col: any) => ({
-      headerName: col.name,
-      field: col.name,
-      valueGetter: (param: any) => param.data[col.name],
-      headerComponent: AgGridHeaderContextMenu,
-      headerComponentParams: {
-        onPinColumn: handlePinColumn,
-        onAutoSizeColumn: handleAutoSizeColumn,
-        onResetColumns: handleResetColumns,
-      },
-    }));
+    const colDefs: ColDef<IRow>[] = currentResult.result.meta.map(
+      (col: any) => ({
+        headerName: col.name,
+        field: col.name,
+        valueGetter: (param: any) => param.data[col.name],
+        headerComponent: AgGridHeaderContextMenu,
+        headerComponentParams: {
+          onPinColumn: handlePinColumn,
+          onAutoSizeColumn: handleAutoSizeColumn,
+          onResetColumns: handleResetColumns,
+        },
+      }),
+    );
 
     return { columnDefs: colDefs, rowData: currentResult.result.data };
-  }, [currentResult, handlePinColumn, handleAutoSizeColumn, handleResetColumns]);
+  }, [
+    currentResult,
+    handlePinColumn,
+    handleAutoSizeColumn,
+    handleResetColumns,
+  ]);
 
   const gridOptions = useMemo(
     () => createGridOptions(rowData.length),
-    [rowData.length]
+    [rowData.length],
   );
 
   const renderResultsTab = () => {
@@ -279,9 +299,10 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
                 className={`
                   flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md whitespace-nowrap
                   transition-colors duration-150
-                  ${isSelected
-                    ? "bg-background shadow-sm border"
-                    : "hover:bg-muted"
+                  ${
+                    isSelected
+                      ? "bg-background shadow-sm border"
+                      : "hover:bg-muted"
                   }
                   ${isError ? "text-destructive" : ""}
                 `}
@@ -291,7 +312,7 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
                 ) : (
                   <CheckCircle className="h-3.5 w-3.5 text-green-500" />
                 )}
-                <span className="truncate max-w-[120px]">
+                <span className="truncate max-w-30">
                   {getQueryLabel(r.queryText, index)}
                 </span>
               </button>
@@ -306,26 +327,33 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
         onValueChange={setActiveTab}
         className="flex-1 flex flex-col overflow-hidden"
       >
-        <TabsList className="rounded-none border-b px-4">
+        <TabsList className="rounded-none gap-1 border-b">
           <TabsTrigger value="results">
             Results
             {hasData && !hasError && (
-              <div className="ml-2 text-muted-foreground items-center flex">
+              <span className="ml-2 text-muted-foreground">
                 ({currentResult?.result.data.length} rows)
-                <DownloadDialog data={currentResult?.result.data} />
-              </div>
+              </span>
             )}
           </TabsTrigger>
           <TabsTrigger value="metadata">
             Metadata
             {hasMeta && !hasError && (
-              <div className="ml-2 text-muted-foreground items-center flex">
+              <span className="ml-2 text-muted-foreground">
                 ({currentResult?.result.meta.length} columns)
-                <DownloadDialog data={currentResult?.result.meta} />
-              </div>
+              </span>
             )}
           </TabsTrigger>
           <TabsTrigger value="statistics">Statistics</TabsTrigger>
+
+          <div className="ml-auto flex items-center">
+            {hasData && !hasError && activeTab === "results" && (
+              <DownloadDialog data={currentResult?.result.data} />
+            )}
+            {hasMeta && !hasError && activeTab === "metadata" && (
+              <DownloadDialog data={currentResult?.result.meta} />
+            )}
+          </div>
         </TabsList>
         <div className="flex-1 overflow-hidden">
           <TabsContent value="results" className="h-full m-0">

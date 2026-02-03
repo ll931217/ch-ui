@@ -363,10 +363,14 @@ function determineClauseType(tokens: Token[], cursorTokenIndex: number): ClauseT
       const keyword = token.value.toUpperCase();
 
       // Check for multi-word keywords like "GROUP BY", "ORDER BY"
-      if (keyword === 'BY' && i > 0) {
-        const prevToken = tokens[i - 1];
-        if (prevToken.type === 'KEYWORD') {
-          const prevKeyword = prevToken.value.toUpperCase();
+      if (keyword === 'BY') {
+        // Find the previous non-whitespace token
+        let prevIndex = i - 1;
+        while (prevIndex >= 0 && tokens[prevIndex].type === 'WHITESPACE') {
+          prevIndex--;
+        }
+        if (prevIndex >= 0 && tokens[prevIndex].type === 'KEYWORD') {
+          const prevKeyword = tokens[prevIndex].value.toUpperCase();
           if (prevKeyword === 'GROUP') return 'GROUP_BY';
           if (prevKeyword === 'ORDER') return 'ORDER_BY';
         }

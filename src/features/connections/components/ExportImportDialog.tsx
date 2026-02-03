@@ -43,6 +43,7 @@ export default function ExportImportDialog({
     new Set()
   );
   const [includePasswords, setIncludePasswords] = useState(false);
+  const [includeSavedQueries, setIncludeSavedQueries] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
   // Import state
@@ -81,7 +82,8 @@ export default function ExportImportDialog({
     try {
       const blob = await exportConnections(
         Array.from(selectedConnections),
-        includePasswords
+        includePasswords,
+        includeSavedQueries
       );
 
       if (blob) {
@@ -221,6 +223,19 @@ export default function ExportImportDialog({
                     />
                     <Label htmlFor="include-passwords" className="cursor-pointer">
                       Include passwords
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="include-saved-queries"
+                      checked={includeSavedQueries}
+                      onCheckedChange={(checked) =>
+                        setIncludeSavedQueries(checked === true)
+                      }
+                    />
+                    <Label htmlFor="include-saved-queries" className="cursor-pointer">
+                      Include saved queries
                     </Label>
                   </div>
 

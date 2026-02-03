@@ -69,7 +69,8 @@ interface ConnectionState {
   // Export/Import
   exportConnections: (
     connectionIds: string[],
-    includePasswords: boolean
+    includePasswords: boolean,
+    includeSavedQueries: boolean
   ) => Promise<Blob | null>;
   importConnections: (file: File) => Promise<{ success: number; failed: number }>;
 
@@ -302,7 +303,7 @@ export const useConnectionStore = create<ConnectionState>()(
     }
   },
 
-  exportConnections: async (connectionIds, includePasswords) => {
+  exportConnections: async (connectionIds, includePasswords, includeSavedQueries) => {
     try {
       const connections: ExportedConnection[] = [];
       const savedQueries: Record<string, ExportedSavedQuery[]> = {};
@@ -323,14 +324,16 @@ export const useConnectionStore = create<ConnectionState>()(
           clusterName: conn.clusterName,
         });
 
-        // Fetch saved queries for this connection
-        const queries = await getSavedQueriesByConnectionId(id);
-        if (queries.length > 0) {
-          savedQueries[conn.name] = queries.map((q) => ({
-            name: q.name,
-            query: q.query,
-            databaseName: q.databaseName,
-          }));
+        // Fetch saved queries for this connection (only if requested)
+        if (includeSavedQueries) {
+          const queries = await getSavedQueriesByConnectionId(id);
+          if (queries.length > 0) {
+            savedQueries[conn.name] = queries.map((q) => ({
+              name: q.name,
+              query: q.query,
+              databaseName: q.databaseName,
+            }));
+          }
         }
       }
 

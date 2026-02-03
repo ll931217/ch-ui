@@ -592,6 +592,24 @@
   pointer-events: none;
 }
 
+/* AG Grid selected row text visibility */
+.ag-theme-balham .ag-row-selected,
+.ag-theme-balham-dark .ag-row-selected {
+  color: hsl(var(--foreground)) !important;
+  font-weight: 500;
+}
+
+.ag-theme-balham .ag-row-selected .ag-cell,
+.ag-theme-balham-dark .ag-row-selected .ag-cell {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Ensure checkbox column also has good contrast */
+.ag-theme-balham .ag-row-selected .ag-selection-checkbox,
+.ag-theme-balham-dark .ag-row-selected .ag-selection-checkbox {
+  color: hsl(var(--foreground)) !important;
+}
+
 /* Row number column hover effect */
 .row-number-cell:hover {
   background-color: hsl(var(--accent)) !important;

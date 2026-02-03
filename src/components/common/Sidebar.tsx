@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useTheme } from "@/components/common/theme-provider";
+import { useTheme, isLightTheme } from "@/components/common/theme-provider";
 import {
   SquareTerminal,
   Github,
@@ -108,7 +108,7 @@ const Sidebar = () => {
   const ch_ui_version = __CH_UI_VERSION__;
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+    setTheme(isLightTheme(theme) ? "dracula" : "github-light");
   };
 
   useEffect(() => {
@@ -179,21 +179,22 @@ const Sidebar = () => {
 
       <ScrollArea className="flex-grow">
         <nav className="space-y-1 p-2">
-          {isServerAvailable && navItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              target={item.isNewWindow ? "_blank" : "_self"}
-              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                location.pathname === item.to
-                  ? "bg-secondary text-secondary-foreground"
-                  : "hover:bg-secondary/80"
-              }`}
-            >
-              <item.icon className={`h-5 w-5 ${isExpanded ? "mr-2" : ""}`} />
-              {isExpanded && <span>{item.label}</span>}
-            </Link>
-          ))}
+          {isServerAvailable &&
+            navItems.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                target={item.isNewWindow ? "_blank" : "_self"}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  location.pathname === item.to
+                    ? "bg-secondary text-secondary-foreground"
+                    : "hover:bg-secondary/80"
+                }`}
+              >
+                <item.icon className={`h-5 w-5 ${isExpanded ? "mr-2" : ""}`} />
+                {isExpanded && <span>{item.label}</span>}
+              </Link>
+            ))}
           {isServerAvailable && isAdmin && (
             <Link
               to="/admin"
@@ -264,10 +265,10 @@ const Sidebar = () => {
           </TooltipProvider>
 
           <Button variant="ghost" size="icon" onClick={toggleTheme}>
-            {theme === "dark" ? (
-              <Sun className="h-5 w-5" />
-            ) : (
+            {isLightTheme(theme) ? (
               <Moon className="h-5 w-5" />
+            ) : (
+              <Sun className="h-5 w-5" />
             )}
           </Button>
 
@@ -333,8 +334,8 @@ const Sidebar = () => {
                   {isLoadingCredentials
                     ? "Connecting..."
                     : isServerAvailable
-                    ? "Connected"
-                    : "Disconnected"}
+                      ? "Connected"
+                      : "Disconnected"}
                 </span>
               )}
             </Button>
@@ -346,8 +347,8 @@ const Sidebar = () => {
                 {isLoadingCredentials
                   ? "Connecting..."
                   : isServerAvailable
-                  ? "Connected"
-                  : "Disconnected"}
+                    ? "Connected"
+                    : "Disconnected"}
               </p>
               <p className="text-xs">Click House Version: {version}</p>
               <p className="text-xs">CH-UI Version: {ch_ui_version}</p>

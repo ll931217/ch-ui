@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react"
 
-type Theme =
+export type Theme =
   | "dracula"
   | "nord"
   | "gruvbox-dark"
@@ -10,6 +10,16 @@ type Theme =
   | "catppuccin-latte"
   | "one-light"
   | "system"
+
+const LIGHT_THEMES: Theme[] = ["github-light", "gruvbox-light", "catppuccin-latte", "one-light"];
+const DARK_THEMES: Theme[] = ["dracula", "nord", "gruvbox-dark", "tokyo-night"];
+
+export function isLightTheme(theme: Theme): boolean {
+  if (theme === "system") {
+    return !window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  return LIGHT_THEMES.includes(theme);
+}
 
 type ThemeProviderProps = {
   children: React.ReactNode
@@ -42,6 +52,7 @@ export function ThemeProvider({
   useEffect(() => {
     const root = window.document.documentElement
 
+    // Remove all theme classes
     root.classList.remove(
       "dracula",
       "nord",
@@ -50,7 +61,8 @@ export function ThemeProvider({
       "github-light",
       "gruvbox-light",
       "catppuccin-latte",
-      "one-light"
+      "one-light",
+      "dark"
     )
 
     if (theme === "system") {
@@ -63,6 +75,7 @@ export function ThemeProvider({
       return
     }
 
+    // Apply the selected theme
     root.classList.add(theme)
   }, [theme])
 

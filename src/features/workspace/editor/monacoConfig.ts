@@ -8,6 +8,7 @@ import { parseSQLContext, SQLContext, type ClauseType, type TableReference, gene
 import { getAllEngines, DDL_OBJECTS } from "./clickhouseConstants";
 import useAppStore from "@/store";
 import { AutocompleteUsageTracker, type SuggestionCategory } from "./usageTracker";
+import { registerMonacoThemes } from "./monacoThemes";
 
 // Add this declaration to extend the Window interface
 declare global {
@@ -792,6 +793,9 @@ export const initializeMonacoGlobally = async () => {
   if (isInitialized) return;
 
   ensureMonacoEnvironment();
+
+  // Register custom Monaco themes (dracula, nord, tokyo-night, etc.)
+  registerMonacoThemes();
 
   // Register the SQL language
   monaco.languages.register({ id: "sql" });

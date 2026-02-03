@@ -1,4 +1,4 @@
-import { Palette } from "lucide-react";
+import { Palette, Monitor } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,10 +9,7 @@ import {
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -20,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useTheme } from "@/components/common/theme-provider";
 import { useAppearance } from "@/contexts/AppearanceContext";
-import { ThemePreview } from "./ThemePreview";
+import { ThemeCard } from "./ThemeCard";
 
 const DARK_THEMES = [
   {
@@ -102,46 +99,57 @@ export function AppearanceTab() {
             Select your preferred color theme for the interface
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="theme-select">Color Theme</Label>
-            <Select value={theme} onValueChange={setTheme}>
-              <SelectTrigger id="theme-select" className="w-full">
-                <SelectValue placeholder="Select theme" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Dark Themes</SelectLabel>
-                  {DARK_THEMES.map((themeOption) => (
-                    <SelectItem key={themeOption.value} value={themeOption.value}>
-                      <div className="flex items-center">
-                        <ThemePreview colors={themeOption.colors} />
-                        <span>{themeOption.label}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-                <SelectSeparator />
-                <SelectGroup>
-                  <SelectLabel>Light Themes</SelectLabel>
-                  {LIGHT_THEMES.map((themeOption) => (
-                    <SelectItem key={themeOption.value} value={themeOption.value}>
-                      <div className="flex items-center">
-                        <ThemePreview colors={themeOption.colors} />
-                        <span>{themeOption.label}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-                <SelectSeparator />
-                <SelectItem value="system">
-                  <div className="flex items-center">
-                    <Palette className="h-4 w-4 mr-2" />
-                    <span>System</span>
+        <CardContent className="space-y-6">
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Dark Themes</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {DARK_THEMES.map((themeOption) => (
+                <ThemeCard
+                  key={themeOption.value}
+                  theme={themeOption}
+                  isSelected={theme === themeOption.value}
+                  onSelect={() => setTheme(themeOption.value)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Light Themes</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {LIGHT_THEMES.map((themeOption) => (
+                <ThemeCard
+                  key={themeOption.value}
+                  theme={themeOption}
+                  isSelected={theme === themeOption.value}
+                  onSelect={() => setTheme(themeOption.value)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">System</Label>
+            <Card
+              className={`cursor-pointer transition-all duration-200 ${
+                theme === "system"
+                  ? "border-primary ring-2 ring-primary"
+                  : "border-muted hover:border-primary/50"
+              }`}
+              onClick={() => setTheme("system")}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <Monitor className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <span className="font-semibold">System Preference</span>
+                    <p className="text-xs text-muted-foreground">
+                      Automatically match your OS theme
+                    </p>
                   </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </CardContent>
       </Card>

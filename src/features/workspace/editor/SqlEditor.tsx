@@ -7,6 +7,7 @@ import {
   initializeMonacoGlobally,
   createMonacoEditor,
 } from "@/features/workspace/editor/monacoConfig";
+import { getMonacoTheme, isLightTheme } from "@/features/workspace/editor/monacoThemes";
 import { AutocompleteUsageTracker } from "@/features/workspace/editor/usageTracker";
 import { Button } from "@/components/ui/button";
 import { CirclePlay, Save, PlaySquare } from "lucide-react";
@@ -70,11 +71,8 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const [currentQueryIndex, setCurrentQueryIndex] = useState<number>(-1);
   const navigate = useNavigate();
 
-  const lightThemes = ["github-light", "gruvbox-light", "catppuccin-latte", "one-light"];
-  const editorTheme = lightThemes.includes(theme)
-    ? "vs-light"
-    : "vs-dark";
-  const highlightBackground = lightThemes.includes(theme)
+  const editorTheme = getMonacoTheme(theme);
+  const highlightBackground = isLightTheme(theme)
     ? "rgba(66, 153, 225, 0.08)"
     : "rgba(99, 179, 237, 0.12)";
 

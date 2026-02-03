@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import uPlot, { AlignedData } from "uplot";
-import { useTheme } from "@/components/common/theme-provider";
+import { useTheme, isLightTheme } from "@/components/common/theme-provider";
 import { UPlotWrapper } from "./uplot/UPlotWrapper";
 import {
   PALETTE,
@@ -40,7 +40,7 @@ const UPlotChart: React.FC<UPlotChartProps> = ({
   seriesDecimals = {},
 }) => {
   const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const isDark = !isLightTheme(theme);
   const chartTheme = {
     axis: {
       stroke: isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.45)",

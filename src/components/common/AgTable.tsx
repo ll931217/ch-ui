@@ -2,7 +2,7 @@ import { useMemo, useRef, useCallback, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef, AllCommunityModule, ColumnPinnedType } from "ag-grid-community";
 import { themeBalham, colorSchemeDark } from "ag-grid-community";
-import { useTheme } from "@/components/common/theme-provider";
+import { useTheme, isLightTheme } from "@/components/common/theme-provider";
 import EmptyQueryResult from "@/features/workspace/components/EmptyQueryResult";
 import StatisticsDisplay from "@/features/workspace/components/StatisticsDisplay";
 import DownloadDialog from "@/components/common/DownloadDialog";
@@ -31,7 +31,7 @@ export default function AgTable({ data, height = "350px" }: AgTableProps) {
   const { theme } = useTheme();
 
   const gridTheme =
-    theme === "light" ? themeBalham : themeBalham.withPart(colorSchemeDark);
+    isLightTheme(theme) ? themeBalham : themeBalham.withPart(colorSchemeDark);
 
   const defaultColDef = useMemo(() => createDefaultColDef(), []);
   const gridOptions = useMemo(

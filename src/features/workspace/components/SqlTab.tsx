@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { useTheme } from "@/components/common/theme-provider";
+import { useTheme, isLightTheme } from "@/components/common/theme-provider";
 import DownloadDialog from "@/components/common/DownloadDialog";
 import EmptyQueryResult from "./EmptyQueryResult";
 import StatisticsDisplay from "./StatisticsDisplay";
@@ -57,9 +57,8 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("results");
 
-  // Configure AG Grid theme based on app theme
   const gridTheme =
-    theme === "light" ? themeBalham : themeBalham.withPart(colorSchemeDark);
+    isLightTheme(theme) ? themeBalham : themeBalham.withPart(colorSchemeDark);
 
   // AG Grid configuration
   const defaultColDef = useMemo(() => createDefaultColDef(), []);

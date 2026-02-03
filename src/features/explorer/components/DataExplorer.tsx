@@ -58,12 +58,14 @@ const DatabaseExplorer: React.FC = () => {
     // When a specific database is selected, return folders directly (flattened)
     if (selectedDatabase && filteredDatabases.length === 1) {
       const db = filteredDatabases[0];
-      const tables = db.children.filter((child) => child.type === "table") as TreeNodeData[];
+      const tables = db.children.filter(
+        (child) => child.type === "table",
+      ) as TreeNodeData[];
       const views = db.children.filter(
-        (child) => child.type === "view" || child.type === "materialized_view"
+        (child) => child.type === "view" || child.type === "materialized_view",
       ) as TreeNodeData[];
       const dictionaries = db.children.filter(
-        (child) => child.type === "dictionary"
+        (child) => child.type === "dictionary",
       ) as TreeNodeData[];
 
       const folders: TreeNodeData[] = [];
@@ -97,12 +99,14 @@ const DatabaseExplorer: React.FC = () => {
 
     // When showing all databases, include database nodes
     return filteredDatabases.map((db) => {
-      const tables = db.children.filter((child) => child.type === "table") as TreeNodeData[];
+      const tables = db.children.filter(
+        (child) => child.type === "table",
+      ) as TreeNodeData[];
       const views = db.children.filter(
-        (child) => child.type === "view" || child.type === "materialized_view"
+        (child) => child.type === "view" || child.type === "materialized_view",
       ) as TreeNodeData[];
       const dictionaries = db.children.filter(
-        (child) => child.type === "dictionary"
+        (child) => child.type === "dictionary",
       ) as TreeNodeData[];
 
       const folders: TreeNodeData[] = [];
@@ -199,7 +203,7 @@ const DatabaseExplorer: React.FC = () => {
   return (
     <div className="flex flex-col h-full">
       {/* Header Section */}
-      <div className="flex-none px-1 py-2 border-b space-y-1">
+      <div className="flex-none px-1 py-2 space-y-1">
         <ConnectionSwitcher />
 
         <div className="flex items-center gap-1">

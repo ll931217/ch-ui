@@ -5,7 +5,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import WorkspaceTabs from "@/features/workspace/components//WorkspaceTabs";
+import WorkspaceTabs from "@/features/workspace/components/WorkspaceTabs";
 import CreateTable from "@/features/explorer/components/CreateTable";
 import CreateDatabase from "@/features/explorer/components/CreateDatabase";
 import UploadFromFile from "@/features/explorer/components/UploadFile";
@@ -34,7 +34,6 @@ function HomePage() {
       >
         <ResizablePanel
           id="database-explorer"
-          className="overflow-scroll"
           defaultSize="20%"
           minSize={300}
           collapsible
@@ -42,12 +41,7 @@ function HomePage() {
           <DatabaseExplorer />
         </ResizablePanel>
         <ResizableHandle withHandle />
-        <ResizablePanel
-          id="workspace-tabs"
-          className="overflow-scroll"
-          defaultSize="80%"
-          minSize="40%"
-        >
+        <ResizablePanel id="workspace-tabs" defaultSize="80%" minSize="40%">
           <WorkspaceTabs />
         </ResizablePanel>
       </ResizablePanelGroup>

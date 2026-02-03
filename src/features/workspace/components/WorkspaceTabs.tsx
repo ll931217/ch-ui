@@ -66,7 +66,6 @@ function SortableTab({ tab, isActive, onActivate }: SortableTabProps) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    width: tab.type === "home" ? "100px" : "150px",
   };
 
   return (
@@ -85,10 +84,10 @@ function SortableTab({ tab, isActive, onActivate }: SortableTabProps) {
       }}
     >
       <ContextMenu>
-        <ContextMenuTrigger className="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
+        <ContextMenuTrigger className="flex items-center justify-center text-sm">
           <TabsTrigger
             value={tab.id}
-            className={`data-[state=active]:bg-orange-500 h-8 data-[state=active]:text-primary flex items-center rounded-sm w-full`}
+            className="h-8 flex items-center rounded-sm px-2 gap-1"
             onClick={onActivate}
           >
             {isActive && isHovering && tab.type !== "home" && (
@@ -97,25 +96,23 @@ function SortableTab({ tab, isActive, onActivate }: SortableTabProps) {
               </div>
             )}
             {tab.type === "home" && (
-              <Home width={16} className="mr-2 min-w-4" />
+              <Home width={14} className="min-w-3.5 shrink-0" />
             )}
             {tab.type === "sql" && !tab.isSaved && (
-              <Terminal width={16} className="mr-2 min-w-4" />
+              <Terminal width={14} className="min-w-3.5 shrink-0" />
             )}
             {tab.type === "sql" && tab.isSaved && (
-              <Save width={16} className="mr-2 min-w-4" />
+              <Save width={14} className="min-w-3.5 shrink-0" />
             )}
             {tab.type === "information" && (
-              <Info width={16} className="mr-2 min-w-4" />
+              <Info width={14} className="min-w-3.5 shrink-0" />
             )}
 
-            <div className="flex items-center overflow-hidden">
-              <span className="truncate max-w-16 text-xs">{tab.title}</span>
-            </div>
+            <span className="truncate max-w-20 text-xs">{tab.title}</span>
 
             {tab.id !== "home" && (
               <span
-                className="ml-auto cursor-pointer"
+                className="cursor-pointer shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
                   removeTab(tab.id);
@@ -247,7 +244,7 @@ function WorkspaceTabs() {
                     strategy={horizontalListSortingStrategy}
                   >
                     <div className="flex">
-                      <TabsList className="inline-flex h-10 items-center justify-start rounded-none w-full overflow-y-clip">
+                      <TabsList className="inline-flex h-10 items-center justify-start rounded-none w-full overflow-y-clip gap-1">
                         {sortedTabs.map((tab) => (
                           <SortableTab
                             key={tab.id}

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { Loader2, FileX2, RefreshCw } from "lucide-react";
+import { Loader2, FileX2, RefreshCw, AlertTriangle } from "lucide-react";
 import { AgGridReact } from "ag-grid-react";
 import {
   ColDef,
@@ -35,6 +35,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -438,8 +444,21 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
           <TabsTrigger value="results">
             Results
             {hasData && (
-              <span className="ml-2 text-muted-foreground">
-                ({tab?.result.data.length} rows)
+              <span className="ml-2 text-muted-foreground inline-flex items-center gap-1">
+                ({tab?.result.data.length.toLocaleString()} rows)
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <AlertTriangle className="h-3.5 w-3.5 text-orange-500 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Results may be truncated for performance.</p>
+                      <p className="text-xs text-muted-foreground">
+                        Use LIMIT clause for precise control.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </span>
             )}
           </TabsTrigger>

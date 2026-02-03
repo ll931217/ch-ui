@@ -77,10 +77,7 @@ const commandsSheet = [
 ];
 
 const Sidebar = () => {
-  const {
-    isServerAvailable,
-    isAdmin,
-  } = useAppStore();
+  const { isServerAvailable, isAdmin } = useAppStore();
   const location = useLocation();
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -114,18 +111,18 @@ const Sidebar = () => {
 
   const bottomNavLinks = [
     { to: "/settings", label: "Settings", icon: CogIcon, isNewWindow: false },
-    {
-      to: "https://github.com/caioricciuti/ch-ui?utm_source=ch-ui&utm_medium=sidebar",
-      label: "GitHub",
-      icon: Github,
-      isNewWindow: true,
-    },
-    {
-      to: "https://ch-ui.com/docs?utm_source=ch-ui&utm_medium=sidebar",
-      label: "Documentation",
-      icon: BookText,
-      isNewWindow: true,
-    },
+    // {
+    //   to: "https://github.com/caioricciuti/ch-ui?utm_source=ch-ui&utm_medium=sidebar",
+    //   label: "GitHub",
+    //   icon: Github,
+    //   isNewWindow: true,
+    // },
+    // {
+    //   to: "https://ch-ui.com/docs?utm_source=ch-ui&utm_medium=sidebar",
+    //   label: "Documentation",
+    //   icon: BookText,
+    //   isNewWindow: true,
+    // },
   ];
 
   return (
@@ -186,7 +183,7 @@ const Sidebar = () => {
                 />
                 <Badge
                   variant="secondary"
-                  className={`absolute -top-1 -right-0 bg-purple-500 text-[10px] text-white hover:bg-purple-600 p-1
+                  className={`absolute -top-1 right-0 bg-purple-500 text-[10px] text-white hover:bg-purple-600 p-1
                     ${isExpanded ? "mr-2" : ""}
                     `}
                 >
@@ -200,7 +197,7 @@ const Sidebar = () => {
       </ScrollArea>
 
       <div className="w-full">
-        <ScrollArea className="flex-grow">
+        <ScrollArea className="grow">
           <nav className="space-y-1 p-2">
             {bottomNavLinks.map((item) => (
               <Link
@@ -246,7 +243,7 @@ const Sidebar = () => {
                 <LifeBuoy className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent className="xl:w-[1000px] xl:max-w-none sm:w-[400px] sm:max-w-[540px]">
+            <SheetContent className="xl:w-250 xl:max-w-none sm:w-100 sm:max-w-135">
               <SheetHeader>
                 <SheetTitle>Command Cheat Sheet</SheetTitle>
                 <SheetDescription>
@@ -335,7 +332,6 @@ const Sidebar = () => {
               </CommandItem>
             ))}
           </CommandGroup>
-
         </CommandList>
       </CommandDialog>
     </div>

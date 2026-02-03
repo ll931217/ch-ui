@@ -308,23 +308,27 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     if (tab?.result?.data?.length && tab?.result?.meta?.length) {
       const rowNumCol = createRowNumberColDef();
 
-      const dataColDefs: ColDef<IRow>[] = tab.result.meta.map((col: any) => ({
-        headerName: col.name,
-        field: col.name,
-        valueGetter: (param: any) => param.data[col.name],
-        headerComponent: AgGridHeaderContextMenu,
-        headerComponentParams: {
-          onPinColumn: handlePinColumn,
-          onAutoSizeColumn: handleAutoSizeColumn,
-          onResetColumns: handleResetColumns,
-        },
-        cellClassRules: {
-          "cell-selected": (params: any) =>
-            params.node?.rowIndex != null &&
-            (isCellSelected(params.node.rowIndex, col.name) ||
-              isRowSelected(params.node.rowIndex)),
-        },
-      }));
+      const dataColDefs: ColDef<IRow>[] = tab.result.meta.map((col: any) => {
+        const colName = col.name;
+        return {
+          headerName: colName,
+          field: colName,
+          valueGetter: (param: any) => param.data[colName],
+          headerComponent: AgGridHeaderContextMenu,
+          headerComponentParams: {
+            onPinColumn: handlePinColumn,
+            onAutoSizeColumn: handleAutoSizeColumn,
+            onResetColumns: handleResetColumns,
+          },
+          cellClassRules: {
+            "cell-selected": (params: any) => {
+              if (params.node?.rowIndex == null) return false;
+              return isCellSelected(params.node.rowIndex, colName) ||
+                isRowSelected(params.node.rowIndex);
+            },
+          },
+        };
+      });
 
       setRowData(tab.result.data);
       setColumnDefs([rowNumCol, ...dataColDefs]);

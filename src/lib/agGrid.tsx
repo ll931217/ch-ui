@@ -123,6 +123,39 @@ export const applyPinnedState = <T = any>(
   });
 };
 
+/**
+ * Create column definition for row number column with pagination support
+ * 
+ * Shows absolute row numbers across paginated results:
+ * - Page 1 (rows 1-100): Shows 1, 2, 3, ..., 100
+ * - Page 2 (rows 101-200): Shows 101, 102, 103, ..., 200
+ */
+export const createRowNumberColDef = (): ColDef => ({
+  headerName: "#",
+  width: 60,
+  minWidth: 50,
+  maxWidth: 80,
+  pinned: "left",
+  lockPosition: "left",
+  suppressMovable: true,
+  sortable: false,
+  filter: false,
+  resizable: false,
+  cellClass: "ag-header-cell-text",
+  cellStyle: {
+    textAlign: "center",
+    cursor: "pointer",
+    userSelect: "none",
+  },
+  valueGetter: (params) => {
+    if (params.node?.rowIndex == null) return "";
+    const api = params.api;
+    const currentPage = api.paginationGetCurrentPage();
+    const pageSize = api.paginationGetPageSize();
+    return currentPage * pageSize + params.node.rowIndex + 1;
+  },
+});
+
 const getCssVarAsHsl = (varName: string): string => {
   const value = getComputedStyle(document.documentElement)
     .getPropertyValue(varName)

@@ -1,20 +1,31 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { Loader2, FileX2 } from "lucide-react";
+import { Loader2, FileX2, RefreshCw } from "lucide-react";
 import { AgGridReact } from "ag-grid-react";
 import {
   ColDef,
   AllCommunityModule,
   GridApi,
   ColumnPinnedType,
+  CellClickedEvent,
+  CellContextMenuEvent,
 } from "ag-grid-community";
 import {
   createDefaultColDef,
   createGridOptions,
   PinnedColumnsState,
   createAgGridTheme,
+  createRowNumberColDef,
 } from "@/lib/agGrid";
 import AgGridHeaderContextMenu from "@/components/common/AgGridHeaderContextMenu";
+import { useCellSelection } from "@/hooks/useCellSelection";
+import {
+  formatData,
+  ExportFormat,
+  getAvailableFormats,
+  getFormatDisplayName,
+} from "@/lib/formatUtils";
+import CopyResultsDialog from "@/components/common/CopyResultsDialog";
 
 // Component imports
 import SQLEditor from "@/features/workspace/editor/SqlEditor";
@@ -24,6 +35,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useTheme } from "@/components/common/theme-provider";
 import DownloadDialog from "@/components/common/DownloadDialog";
@@ -56,6 +68,27 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const tab = getTabById(tabId);
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("results");
+
+  // Cell selection hook
+  const {
+    selectCell,
+    selectRow,
+    clearSelection,
+    isCellSelected,
+    isRowSelected,
+    getSelectedData,
+    getSelectedColumns,
+  } = useCellSelection();
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    visible: boolean;
+  } | null>(null);
+
+  // Last query for refresh
+  const [lastQuery, setLastQuery] = useState<string>("");
 
   const gridTheme = createAgGridTheme(theme);
 
@@ -152,6 +185,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   // Handle single query execution
   const handleRunQuery = useCallback(
     async (query: string) => {
+      setLastQuery(query);
       try {
         // Clear multi-query results when running single query
         await updateTab(tabId, {
@@ -199,6 +233,68 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     [runAllQueries, tabId, fetchDatabaseInfo],
   );
 
+  const handleRefresh = useCallback(async () => {
+    if (lastQuery) {
+      await handleRunQuery(lastQuery);
+    }
+  }, [lastQuery, handleRunQuery]);
+
+  const handleCellClicked = useCallback(
+    (event: CellClickedEvent) => {
+      const colId = event.column.getColId();
+      const rowIndex = event.rowIndex;
+
+      if (rowIndex == null) return;
+
+      if (colId === "#" || event.column.getColDef().headerName === "#") {
+        selectRow(rowIndex, event.event as unknown as React.MouseEvent);
+      } else {
+        selectCell(rowIndex, colId, event.event as unknown as React.MouseEvent);
+      }
+    },
+    [selectRow, selectCell],
+  );
+
+  const handleCellContextMenu = useCallback((event: CellContextMenuEvent) => {
+    event.event?.preventDefault();
+    const mouseEvent = event.event as MouseEvent;
+
+    setContextMenu({
+      x: mouseEvent.clientX,
+      y: mouseEvent.clientY,
+      visible: true,
+    });
+  }, []);
+
+  const handleCopyFormat = useCallback(
+    (format: ExportFormat) => {
+      const columns = columnDefs
+        .filter((c) => (c.field || c.headerName) !== "#")
+        .map((c) => c.field || c.headerName || "");
+
+      const selectedData = getSelectedData(
+        rowData,
+        columns.map((c) => ({ colId: c }))
+      );
+
+      if (selectedData.length === 0) {
+        toast.error("No cells selected");
+        return;
+      }
+
+      const formatted = formatData(
+        selectedData,
+        getSelectedColumns(),
+        format,
+        "query_results"
+      );
+      navigator.clipboard.writeText(formatted);
+      toast.success(`Copied as ${getFormatDisplayName(format)}`);
+      setContextMenu(null);
+    },
+    [rowData, columnDefs, getSelectedData, getSelectedColumns]
+  );
+
   // Handle result index change for multi-query results
   const handleResultIndexChange = useCallback(
     (index: number) => {
@@ -210,7 +306,9 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   // Process result data into grid-compatible format
   useMemo(() => {
     if (tab?.result?.data?.length && tab?.result?.meta?.length) {
-      const colDefs: ColDef<IRow>[] = tab.result.meta.map((col: any) => ({
+      const rowNumCol = createRowNumberColDef();
+
+      const dataColDefs: ColDef<IRow>[] = tab.result.meta.map((col: any) => ({
         headerName: col.name,
         field: col.name,
         valueGetter: (param: any) => param.data[col.name],
@@ -220,10 +318,16 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
           onAutoSizeColumn: handleAutoSizeColumn,
           onResetColumns: handleResetColumns,
         },
+        cellClassRules: {
+          "cell-selected": (params: any) =>
+            params.node?.rowIndex != null &&
+            (isCellSelected(params.node.rowIndex, col.name) ||
+              isRowSelected(params.node.rowIndex)),
+        },
       }));
 
       setRowData(tab.result.data);
-      setColumnDefs(colDefs);
+      setColumnDefs([rowNumCol, ...dataColDefs]);
     } else {
       setColumnDefs([]);
       setRowData([]);
@@ -234,6 +338,8 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     handlePinColumn,
     handleAutoSizeColumn,
     handleResetColumns,
+    isCellSelected,
+    isRowSelected,
   ]);
 
   // UI rendering functions
@@ -272,8 +378,11 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     }
 
     return (
-      <div className="h-full flex flex-col">
-        <div className="flex-1">
+      <div
+        className="h-full flex flex-col"
+        onClick={() => setContextMenu(null)}
+      >
+        <div className="flex-1 relative">
           <AgGridReact
             ref={gridRef}
             rowData={rowData}
@@ -283,8 +392,27 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
             theme={gridTheme}
             rowHeight={32}
             suppressMovableColumns={false}
+            onCellClicked={handleCellClicked}
+            onCellContextMenu={handleCellContextMenu}
             {...gridOptions}
           />
+
+          {contextMenu?.visible && (
+            <div
+              className="results-context-menu"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+            >
+              {getAvailableFormats().map((format) => (
+                <button
+                  key={format}
+                  className="w-full text-left px-2 py-1.5 text-sm hover:bg-accent rounded"
+                  onClick={() => handleCopyFormat(format)}
+                >
+                  Copy as {getFormatDisplayName(format)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -371,8 +499,29 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
           </TabsTrigger>
           <TabsTrigger value="statistics">Statistics</TabsTrigger>
 
-          {/* Download actions - outside tab triggers */}
-          <div className="ml-auto flex items-center">
+          <div className="ml-auto flex items-center gap-1">
+            {activeTab === "results" && lastQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={handleRefresh}
+                disabled={tab?.isLoading}
+                title="Refresh results"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${tab?.isLoading ? "animate-spin" : ""}`}
+                />
+              </Button>
+            )}
+
+            {hasData && activeTab === "results" && (
+              <CopyResultsDialog
+                data={tab?.result.data}
+                columns={tab?.result.meta.map((m: any) => m.name) || []}
+              />
+            )}
+
             {hasData && activeTab === "results" && (
               <DownloadDialog data={tab?.result.data} />
             )}

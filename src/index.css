@@ -571,3 +571,41 @@
   gap: 20px;
 }
 
+/* ============================================================================
+   AG Grid Cell Selection Styles
+   ============================================================================ */
+
+/* Selected cell background and border */
+.ag-theme-balham .cell-selected,
+.ag-theme-balham-dark .cell-selected {
+  background-color: hsl(var(--primary) / 0.15) !important;
+  border-color: hsl(var(--primary) / 0.3) !important;
+}
+
+/* Selection border overlay */
+.ag-theme-balham .cell-selected::after,
+.ag-theme-balham-dark .cell-selected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid hsl(var(--primary) / 0.5);
+  pointer-events: none;
+}
+
+/* Row number column hover effect */
+.row-number-cell:hover {
+  background-color: hsl(var(--accent)) !important;
+}
+
+/* Context menu for results grid */
+.results-context-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 160px;
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+

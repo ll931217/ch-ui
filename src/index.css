@@ -30,6 +30,7 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+  --color-selected-row: hsl(var(--selected-row));
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
   --color-chart-3: hsl(var(--chart-3));
@@ -79,6 +80,8 @@
     --input: 0 0% 89.8%;
     --ring: 0 0% 3.9%;
 
+    --selected-row: 0 0% 98%;
+
     --chart-1: 173 58% 39%;
     --chart-2: 12 76% 61%;
     --chart-3: 197 37% 24%;
@@ -119,6 +122,8 @@
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
     --ring: 0 0% 83.1%;
+
+    --selected-row: 0 0% 8%;
 
     --chart-1: 220 70% 50%;
     --chart-2: 340 75% 55%;
@@ -161,6 +166,8 @@
     --input: 232 14% 31%;
     --ring: 265 89% 78%;
 
+    --selected-row: 227 14% 25%;
+
     --chart-1: 265 89% 78%;
     --chart-2: 326 100% 74%;
     --chart-3: 191 97% 77%;
@@ -201,6 +208,8 @@
     --border: 220 17% 32%;
     --input: 220 17% 32%;
     --ring: 193 43% 67%;
+
+    --selected-row: 220 16% 27%;
 
     --chart-1: 193 43% 67%;
     --chart-2: 210 34% 63%;
@@ -243,6 +252,8 @@
     --input: 0 0% 27%;
     --ring: 32 93% 58%;
 
+    --selected-row: 0 0% 21%;
+
     --chart-1: 32 93% 58%;
     --chart-2: 40 56% 55%;
     --chart-3: 66 58% 45%;
@@ -283,6 +294,8 @@
     --border: 235 16% 19%;
     --input: 235 16% 19%;
     --ring: 217 92% 76%;
+
+    --selected-row: 232 20% 16%;
 
     --chart-1: 217 92% 76%;
     --chart-2: 267 76% 76%;
@@ -325,6 +338,8 @@
     --input: 214 18% 87%;
     --ring: 212 92% 43%;
 
+    --selected-row: 210 18% 98%;
+
     --chart-1: 212 92% 43%;
     --chart-2: 137 55% 36%;
     --chart-3: 200 79% 35%;
@@ -365,6 +380,8 @@
     --border: 45 25% 74%;
     --input: 45 25% 74%;
     --ring: 17 100% 34%;
+
+    --selected-row: 47 73% 86%;
 
     --chart-1: 17 100% 34%;
     --chart-2: 36 66% 40%;
@@ -407,6 +424,8 @@
     --input: 228 15% 76%;
     --ring: 234 82% 63%;
 
+    --selected-row: 221 20% 89%;
+
     --chart-1: 234 82% 63%;
     --chart-2: 347 87% 44%;
     --chart-3: 353 100% 67%;
@@ -447,6 +466,8 @@
     --border: 0 0% 87%;
     --input: 0 0% 87%;
     --ring: 220 100% 60%;
+
+    --selected-row: 0 0% 97%;
 
     --chart-1: 220 100% 60%;
     --chart-2: 115 54% 48%;

@@ -1,5 +1,10 @@
 import React from "react";
-import { ColDef, ICellRendererParams, GridOptions, ColumnPinnedType } from "ag-grid-community";
+import {
+  ColDef,
+  ICellRendererParams,
+  GridOptions,
+  ColumnPinnedType,
+} from "ag-grid-community";
 import { themeBalham, colorSchemeDark } from "ag-grid-community";
 import { Theme, isLightTheme } from "@/components/common/theme-provider";
 
@@ -93,7 +98,7 @@ export const createGridOptions = (rowCount: number): Partial<GridOptions> => {
   return {
     pagination: true,
     paginationPageSize: 100,
-    enableCellTextSelection: true,
+    enableCellTextSelection: false,
     animateRows: !isLargeDataset, // Disable animations for large datasets
     suppressMovableColumns: false,
     // domLayout: 'normal' is the default (enables virtualization)
@@ -109,7 +114,7 @@ export const createGridOptions = (rowCount: number): Partial<GridOptions> => {
  */
 export const applyPinnedState = <T = any>(
   colDefs: ColDef<T>[],
-  pinnedState: PinnedColumnsState
+  pinnedState: PinnedColumnsState,
 ): ColDef<T>[] => {
   return colDefs.map((colDef) => {
     const field = colDef.field || colDef.headerName;
@@ -125,7 +130,7 @@ export const applyPinnedState = <T = any>(
 
 /**
  * Create column definition for row number column with pagination support
- * 
+ *
  * Shows absolute row numbers across paginated results:
  * - Page 1 (rows 1-100): Shows 1, 2, 3, ..., 100
  * - Page 2 (rows 101-200): Shows 101, 102, 103, ..., 200
@@ -165,7 +170,9 @@ const getCssVarAsHsl = (varName: string): string => {
 
 export const createAgGridTheme = (theme: Theme) => {
   const isLight = isLightTheme(theme);
-  const baseTheme = isLight ? themeBalham : themeBalham.withPart(colorSchemeDark);
+  const baseTheme = isLight
+    ? themeBalham
+    : themeBalham.withPart(colorSchemeDark);
 
   return baseTheme.withParams({
     backgroundColor: getCssVarAsHsl("--background"),
@@ -174,8 +181,9 @@ export const createAgGridTheme = (theme: Theme) => {
     chromeBackgroundColor: getCssVarAsHsl("--muted"),
     headerBackgroundColor: getCssVarAsHsl("--muted"),
     headerTextColor: getCssVarAsHsl("--foreground"),
-    rowHoverColor: getCssVarAsHsl("--accent"),
-    selectedRowBackgroundColor: getCssVarAsHsl("--accent"),
+    rowHoverColor: getCssVarAsHsl("--select-row"),
+    accentColor: getCssVarAsHsl("--accent"),
+    selectedRowBackgroundColor: getCssVarAsHsl("--selected-row"),
     oddRowBackgroundColor: getCssVarAsHsl("--background"),
     modalOverlayBackgroundColor: getCssVarAsHsl("--background"),
   });

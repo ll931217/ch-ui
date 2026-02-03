@@ -35,6 +35,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import { useTheme } from "@/components/common/theme-provider";
 import DownloadDialog from "@/components/common/DownloadDialog";
 import EmptyQueryResult from "./EmptyQueryResult";
@@ -66,13 +73,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const tab = getTabById(tabId);
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("results");
-
-  // Context menu state
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    visible: boolean;
-  } | null>(null);
 
   // Last query for refresh
   const [lastQuery, setLastQuery] = useState<string>("");
@@ -230,21 +230,12 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const rowSelection = useMemo(
     () => ({
       mode: "multiRow" as const,
+      checkboxes: true,
+      headerCheckbox: true,
       enableClickSelection: true,
     }),
-    []
+    [],
   );
-
-  const handleCellContextMenu = useCallback((event: CellContextMenuEvent) => {
-    event.event?.preventDefault();
-    const mouseEvent = event.event as MouseEvent;
-
-    setContextMenu({
-      x: mouseEvent.clientX,
-      y: mouseEvent.clientY,
-      visible: true,
-    });
-  }, []);
 
   const handleCopyFormat = useCallback(
     (format: ExportFormat) => {
@@ -255,13 +246,21 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
         return;
       }
 
-      const columns = columnDefs.map((c) => c.field || c.headerName || "").filter(Boolean);
-      const formatted = formatData(selectedRows, columns, format, "query_results");
+      const columns = columnDefs
+        .map((c) => c.field || c.headerName || "")
+        .filter(Boolean);
+      const formatted = formatData(
+        selectedRows,
+        columns,
+        format,
+        "query_results",
+      );
       navigator.clipboard.writeText(formatted);
-      toast.success(`Copied ${selectedRows.length} rows as ${getFormatDisplayName(format)}`);
-      setContextMenu(null);
+      toast.success(
+        `Copied ${selectedRows.length} rows as ${getFormatDisplayName(format)}`,
+      );
     },
-    [columnDefs]
+    [columnDefs],
   );
 
   // Handle result index change for multi-query results
@@ -296,13 +295,13 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       setColumnDefs([]);
       setRowData([]);
     }
-   }, [
-      tab?.result?.data,
-      tab?.result?.meta,
-      handlePinColumn,
-      handleAutoSizeColumn,
-      handleResetColumns,
-    ]);
+  }, [
+    tab?.result?.data,
+    tab?.result?.meta,
+    handlePinColumn,
+    handleAutoSizeColumn,
+    handleResetColumns,
+  ]);
 
   // UI rendering functions
   const renderLoading = () => (
@@ -340,42 +339,35 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     }
 
     return (
-      <div
-        className="h-full flex flex-col"
-        onClick={() => setContextMenu(null)}
-      >
-         <div className="flex-1 relative">
-           <AgGridReact
-             ref={gridRef}
-             rowData={rowData}
-             columnDefs={columnDefs}
-             defaultColDef={defaultColDef}
-             modules={[AllCommunityModule]}
-             theme={gridTheme}
-             rowHeight={32}
-             suppressMovableColumns={false}
-             rowSelection={rowSelection}
-             onCellContextMenu={handleCellContextMenu}
-             {...gridOptions}
-           />
-
-          {contextMenu?.visible && (
-            <div
-              className="results-context-menu"
-              style={{ left: contextMenu.x, top: contextMenu.y }}
-            >
-              {getAvailableFormats().map((format) => (
-                <button
-                  key={format}
-                  className="w-full text-left px-2 py-1.5 text-sm hover:bg-accent rounded"
-                  onClick={() => handleCopyFormat(format)}
-                >
-                  Copy as {getFormatDisplayName(format)}
-                </button>
-              ))}
+      <div className="h-full flex flex-col">
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div className="flex-1 relative">
+              <AgGridReact
+                ref={gridRef}
+                rowData={rowData}
+                columnDefs={columnDefs}
+                defaultColDef={defaultColDef}
+                modules={[AllCommunityModule]}
+                theme={gridTheme}
+                rowHeight={32}
+                suppressMovableColumns={false}
+                rowSelection={rowSelection}
+                {...gridOptions}
+              />
             </div>
-          )}
-        </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            {getAvailableFormats().map((format) => (
+              <ContextMenuItem
+                key={format}
+                onClick={() => handleCopyFormat(format)}
+              >
+                Copy as {getFormatDisplayName(format)}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuContent>
+        </ContextMenu>
       </div>
     );
   };

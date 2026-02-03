@@ -159,7 +159,7 @@ function WorkspaceTabs() {
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -174,7 +174,7 @@ function WorkspaceTabs() {
           tab.type === "information" &&
           typeof tab.content === "object" &&
           tab.content.database === database &&
-          tab.content.table === table
+          tab.content.table === table,
       );
       if (existingTab) {
         setActiveTab(existingTab.id);
@@ -223,7 +223,7 @@ function WorkspaceTabs() {
         onValueChange={setActiveTab}
         className="flex flex-col h-full"
       >
-        <div className="flex-shrink-0 flex items-center">
+        <div className="shrink-0 flex items-center">
           <Button
             variant="link"
             className="rounded-none hover:bg-gray-200 h-8 px-2 sticky left-0 z-10 bg-background"
@@ -231,7 +231,7 @@ function WorkspaceTabs() {
           >
             <Plus className="h-4 w-4" />
           </Button>
-          <ScrollArea className="flex-grow">
+          <ScrollArea className="grow">
             <ContextMenu>
               <ContextMenuTrigger>
                 <DndContext

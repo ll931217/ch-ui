@@ -1,14 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useTheme, isLightTheme } from "@/components/common/theme-provider";
 import {
   SquareTerminal,
   Github,
-  Loader2,
-  CircleCheckIcon,
-  AlertCircleIcon,
-  Sun,
-  Moon,
   LifeBuoy,
   Search,
   ChevronRight,
@@ -21,7 +15,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
@@ -30,11 +23,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -61,7 +49,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { withBasePath } from "@/lib/basePath";
 import useAppStore from "@/store";
-import ConnectionSwitcher from "@/features/connections/components/ConnectionSwitcher";
 
 const Logo = withBasePath("logo.png");
 import { Badge } from "@/components/ui/badge";
@@ -90,12 +77,8 @@ const commandsSheet = [
 ];
 
 const Sidebar = () => {
-  const { theme, setTheme } = useTheme();
   const {
     isServerAvailable,
-    version,
-    isLoadingCredentials,
-    clearCredentials,
     isAdmin,
   } = useAppStore();
   const location = useLocation();
@@ -103,13 +86,6 @@ const Sidebar = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [open, setOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-
-  // version from vite.config.ts
-  const ch_ui_version = __CH_UI_VERSION__;
-
-  const toggleTheme = () => {
-    setTheme(isLightTheme(theme) ? "dracula" : "github-light");
-  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -264,14 +240,6 @@ const Sidebar = () => {
             </Tooltip>
           </TooltipProvider>
 
-          <Button variant="ghost" size="icon" onClick={toggleTheme}>
-            {isLightTheme(theme) ? (
-              <Moon className="h-5 w-5" />
-            ) : (
-              <Sun className="h-5 w-5" />
-            )}
-          </Button>
-
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -312,49 +280,6 @@ const Sidebar = () => {
             </SheetContent>
           </Sheet>
         </div>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              className={`${
-                isExpanded
-                  ? "w-full justify-items-stretch mb-2"
-                  : "m-auto w-full"
-              } hover:bg-transparent bg-transparent text-primary`}
-            >
-              {isLoadingCredentials ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : isServerAvailable ? (
-                <CircleCheckIcon className="h-5 w-5 text-green-500" />
-              ) : (
-                <AlertCircleIcon className="h-5 w-5 text-red-500" />
-              )}
-              {isExpanded && (
-                <span className="ml-2">
-                  {isLoadingCredentials
-                    ? "Connecting..."
-                    : isServerAvailable
-                      ? "Connected"
-                      : "Disconnected"}
-                </span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-2">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Server Status</p>
-              <p className="text-xs">
-                {isLoadingCredentials
-                  ? "Connecting..."
-                  : isServerAvailable
-                    ? "Connected"
-                    : "Disconnected"}
-              </p>
-              <p className="text-xs">Click House Version: {version}</p>
-              <p className="text-xs">CH-UI Version: {ch_ui_version}</p>
-            </div>
-          </PopoverContent>
-        </Popover>
       </div>
 
       {!isExpanded && (
@@ -410,26 +335,7 @@ const Sidebar = () => {
               </CommandItem>
             ))}
           </CommandGroup>
-          <CommandGroup heading="Actions">
-            <CommandItem
-              onSelect={() => {
-                toast.success("Theme changed!");
-                toggleTheme();
-                setOpen(false);
-              }}
-            >
-              Toggle Theme
-            </CommandItem>
-            <CommandItem
-              onSelect={() => {
-                clearCredentials();
-                toast.success("Credentials cleared!");
-                setOpen(false);
-              }}
-            >
-              Reset Credentials
-            </CommandItem>
-          </CommandGroup>
+
         </CommandList>
       </CommandDialog>
     </div>

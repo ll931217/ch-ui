@@ -41,7 +41,7 @@ function HomePage() {
           <DatabaseExplorer />
         </ResizablePanel>
         <ResizableHandle withHandle />
-        <ResizablePanel id="workspace-tabs" defaultSize="80%" minSize="40%">
+        <ResizablePanel id="workspace-tabs" minSize="40%">
           <WorkspaceTabs />
         </ResizablePanel>
       </ResizablePanelGroup>

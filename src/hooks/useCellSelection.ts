@@ -7,9 +7,7 @@ export interface CellPosition {
 
 export interface SelectionState {
   selectedCells: Set<string>
-  selectedRows: Set<number>
   anchorCell: CellPosition | null
-  anchorRow: number | null
 }
 
 const getCellKey = (rowIndex: number, colId: string): string => {
@@ -27,17 +25,13 @@ const parseCellKey = (key: string): CellPosition => {
 export const useCellSelection = () => {
   const [selection, setSelection] = useState<SelectionState>({
     selectedCells: new Set(),
-    selectedRows: new Set(),
-    anchorCell: null,
-    anchorRow: null
+    anchorCell: null
   })
 
   const clearSelection = useCallback(() => {
     setSelection({
       selectedCells: new Set(),
-      selectedRows: new Set(),
-      anchorCell: null,
-      anchorRow: null
+      anchorCell: null
     })
   }, [])
 
@@ -59,8 +53,7 @@ export const useCellSelection = () => {
         }
         return {
           ...prev,
-          selectedCells: newSelectedCells,
-          selectedRows: new Set()
+          selectedCells: newSelectedCells
         }
       } else if (isCtrlKey) {
         // Toggle selection
@@ -72,60 +65,13 @@ export const useCellSelection = () => {
         return {
           ...prev,
           selectedCells: newSelectedCells,
-          selectedRows: new Set(),
           anchorCell: { rowIndex, colId }
         }
       } else {
         // Regular click: clear and select single cell
         return {
           selectedCells: new Set([cellKey]),
-          selectedRows: new Set(),
-          anchorCell: { rowIndex, colId },
-          anchorRow: null
-        }
-      }
-    })
-  }, [])
-
-  const selectRow = useCallback((rowIndex: number, event?: React.MouseEvent) => {
-    const isCtrlKey = event ? event.ctrlKey || event.metaKey : false
-    const isShiftKey = event ? event.shiftKey : false
-
-    setSelection(prev => {
-      const newSelectedRows = new Set(prev.selectedRows)
-
-      if (isShiftKey && prev.anchorRow !== null) {
-        // Range selection
-        const fromRow = Math.min(prev.anchorRow, rowIndex)
-        const toRow = Math.max(prev.anchorRow, rowIndex)
-        for (let r = fromRow; r <= toRow; r++) {
-          newSelectedRows.add(r)
-        }
-        return {
-          ...prev,
-          selectedRows: newSelectedRows,
-          selectedCells: new Set()
-        }
-      } else if (isCtrlKey) {
-        // Toggle selection
-        if (newSelectedRows.has(rowIndex)) {
-          newSelectedRows.delete(rowIndex)
-        } else {
-          newSelectedRows.add(rowIndex)
-        }
-        return {
-          ...prev,
-          selectedRows: newSelectedRows,
-          selectedCells: new Set(),
-          anchorRow: rowIndex
-        }
-      } else {
-        // Regular click: clear and select single row
-        return {
-          selectedCells: new Set(),
-          selectedRows: new Set([rowIndex]),
-          anchorCell: null,
-          anchorRow: rowIndex
+          anchorCell: { rowIndex, colId }
         }
       }
     })
@@ -157,7 +103,6 @@ export const useCellSelection = () => {
         return {
           ...prev,
           selectedCells: newSelectedCells,
-          selectedRows: new Set(),
           anchorCell: { rowIndex: fromRow, colId: columns[fromColIndex]?.colId || '' }
         }
       })
@@ -168,10 +113,6 @@ export const useCellSelection = () => {
   const isCellSelected = useCallback((rowIndex: number, colId: string): boolean => {
     return selection.selectedCells.has(getCellKey(rowIndex, colId))
   }, [selection.selectedCells])
-
-  const isRowSelected = useCallback((rowIndex: number): boolean => {
-    return selection.selectedRows.has(rowIndex)
-  }, [selection.selectedRows])
 
   const getSelectedColumns = useCallback((): string[] => {
     const columns = new Set<string>()
@@ -184,12 +125,9 @@ export const useCellSelection = () => {
 
   const getSelectedData = useCallback(
     (rowData: Array<Record<string, unknown>>, columns: Array<{ colId: string }>) => {
-      if (selection.selectedRows.size > 0) {
-        // Return full rows
-        return Array.from(selection.selectedRows).map(rowIndex => rowData[rowIndex])
-      } else if (selection.selectedCells.size > 0) {
+      if (selection.selectedCells.size > 0) {
         // Return selected cells grouped by row
-        const result: Record<string, Record<string, unknown>> = {}
+        const result: Record<number, Record<string, unknown>> = {}
         selection.selectedCells.forEach(cellKey => {
           const { rowIndex, colId } = parseCellKey(cellKey)
           if (!result[rowIndex]) {
@@ -201,17 +139,15 @@ export const useCellSelection = () => {
       }
       return []
     },
-    [selection.selectedCells, selection.selectedRows]
+    [selection.selectedCells]
   )
 
   return {
     selection,
     selectCell,
-    selectRow,
     selectCellRange,
     clearSelection,
     isCellSelected,
-    isRowSelected,
     getSelectedColumns,
     getSelectedData
   }

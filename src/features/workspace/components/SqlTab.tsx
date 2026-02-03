@@ -7,18 +7,16 @@ import {
   AllCommunityModule,
   GridApi,
   ColumnPinnedType,
-  CellClickedEvent,
   CellContextMenuEvent,
+  RowSelectionOptions,
 } from "ag-grid-community";
 import {
   createDefaultColDef,
   createGridOptions,
   PinnedColumnsState,
   createAgGridTheme,
-  createRowNumberColDef,
 } from "@/lib/agGrid";
 import AgGridHeaderContextMenu from "@/components/common/AgGridHeaderContextMenu";
-import { useCellSelection } from "@/hooks/useCellSelection";
 import {
   formatData,
   ExportFormat,
@@ -68,17 +66,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const tab = getTabById(tabId);
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("results");
-
-  // Cell selection hook
-  const {
-    selectCell,
-    selectRow,
-    clearSelection,
-    isCellSelected,
-    isRowSelected,
-    getSelectedData,
-    getSelectedColumns,
-  } = useCellSelection();
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -239,20 +226,13 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     }
   }, [lastQuery, handleRunQuery]);
 
-  const handleCellClicked = useCallback(
-    (event: CellClickedEvent) => {
-      const colId = event.column.getColId();
-      const rowIndex = event.rowIndex;
-
-      if (rowIndex == null) return;
-
-      if (colId === "#" || event.column.getColDef().headerName === "#") {
-        selectRow(rowIndex, event.event as unknown as React.MouseEvent);
-      } else {
-        selectCell(rowIndex, colId, event.event as unknown as React.MouseEvent);
-      }
-    },
-    [selectRow, selectCell],
+  // Row selection configuration
+  const rowSelection = useMemo(
+    () => ({
+      mode: "multiRow" as const,
+      enableClickSelection: true,
+    }),
+    []
   );
 
   const handleCellContextMenu = useCallback((event: CellContextMenuEvent) => {
@@ -268,31 +248,20 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 
   const handleCopyFormat = useCallback(
     (format: ExportFormat) => {
-      const columns = columnDefs
-        .filter((c) => (c.field || c.headerName) !== "#")
-        .map((c) => c.field || c.headerName || "");
+      const selectedRows = gridRef.current?.api.getSelectedRows() || [];
 
-      const selectedData = getSelectedData(
-        rowData,
-        columns.map((c) => ({ colId: c }))
-      );
-
-      if (selectedData.length === 0) {
-        toast.error("No cells selected");
+      if (selectedRows.length === 0) {
+        toast.error("No rows selected");
         return;
       }
 
-      const formatted = formatData(
-        selectedData,
-        getSelectedColumns(),
-        format,
-        "query_results"
-      );
+      const columns = columnDefs.map((c) => c.field || c.headerName || "").filter(Boolean);
+      const formatted = formatData(selectedRows, columns, format, "query_results");
       navigator.clipboard.writeText(formatted);
-      toast.success(`Copied as ${getFormatDisplayName(format)}`);
+      toast.success(`Copied ${selectedRows.length} rows as ${getFormatDisplayName(format)}`);
       setContextMenu(null);
     },
-    [rowData, columnDefs, getSelectedData, getSelectedColumns]
+    [columnDefs]
   );
 
   // Handle result index change for multi-query results
@@ -306,8 +275,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   // Process result data into grid-compatible format
   useMemo(() => {
     if (tab?.result?.data?.length && tab?.result?.meta?.length) {
-      const rowNumCol = createRowNumberColDef();
-
       const dataColDefs: ColDef<IRow>[] = tab.result.meta.map((col: any) => {
         const colName = col.name;
         return {
@@ -320,31 +287,22 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
             onAutoSizeColumn: handleAutoSizeColumn,
             onResetColumns: handleResetColumns,
           },
-          cellClassRules: {
-            "cell-selected": (params: any) => {
-              if (params.node?.rowIndex == null) return false;
-              return isCellSelected(params.node.rowIndex, colName) ||
-                isRowSelected(params.node.rowIndex);
-            },
-          },
         };
       });
 
       setRowData(tab.result.data);
-      setColumnDefs([rowNumCol, ...dataColDefs]);
+      setColumnDefs(dataColDefs);
     } else {
       setColumnDefs([]);
       setRowData([]);
     }
-  }, [
-    tab?.result?.data,
-    tab?.result?.meta,
-    handlePinColumn,
-    handleAutoSizeColumn,
-    handleResetColumns,
-    isCellSelected,
-    isRowSelected,
-  ]);
+   }, [
+      tab?.result?.data,
+      tab?.result?.meta,
+      handlePinColumn,
+      handleAutoSizeColumn,
+      handleResetColumns,
+    ]);
 
   // UI rendering functions
   const renderLoading = () => (
@@ -386,20 +344,20 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
         className="h-full flex flex-col"
         onClick={() => setContextMenu(null)}
       >
-        <div className="flex-1 relative">
-          <AgGridReact
-            ref={gridRef}
-            rowData={rowData}
-            columnDefs={columnDefs}
-            defaultColDef={defaultColDef}
-            modules={[AllCommunityModule]}
-            theme={gridTheme}
-            rowHeight={32}
-            suppressMovableColumns={false}
-            onCellClicked={handleCellClicked}
-            onCellContextMenu={handleCellContextMenu}
-            {...gridOptions}
-          />
+         <div className="flex-1 relative">
+           <AgGridReact
+             ref={gridRef}
+             rowData={rowData}
+             columnDefs={columnDefs}
+             defaultColDef={defaultColDef}
+             modules={[AllCommunityModule]}
+             theme={gridTheme}
+             rowHeight={32}
+             suppressMovableColumns={false}
+             rowSelection={rowSelection}
+             onCellContextMenu={handleCellContextMenu}
+             {...gridOptions}
+           />
 
           {contextMenu?.visible && (
             <div

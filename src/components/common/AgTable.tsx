@@ -1,12 +1,21 @@
 import { useMemo, useRef, useCallback, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
-import { ColDef, AllCommunityModule, ColumnPinnedType } from "ag-grid-community";
+import {
+  ColDef,
+  AllCommunityModule,
+  ColumnPinnedType,
+} from "ag-grid-community";
 import { AgGridWrapper } from "./AgGridWrapper";
 import { useTheme } from "@/components/common/theme-provider";
 import EmptyQueryResult from "@/features/workspace/components/EmptyQueryResult";
 import StatisticsDisplay from "@/features/workspace/components/StatisticsDisplay";
 import DownloadDialog from "@/components/common/DownloadDialog";
-import { createDefaultColDef, createGridOptions, PinnedColumnsState, createAgGridTheme } from "@/lib/agGrid";
+import {
+  createDefaultColDef,
+  createGridOptions,
+  PinnedColumnsState,
+  createAgGridTheme,
+} from "@/lib/agGrid";
 import AgGridHeaderContextMenu from "@/components/common/AgGridHeaderContextMenu";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,14 +44,16 @@ export default function AgTable({ data, height = "350px" }: AgTableProps) {
   const defaultColDef = useMemo(() => createDefaultColDef(), []);
   const gridOptions = useMemo(
     () => createGridOptions(data?.data?.length || 0),
-    [data?.data?.length]
+    [data?.data?.length],
   );
 
   const dataGridRef = useRef<AgGridReact<any>>(null);
   const metaGridRef = useRef<AgGridReact<any>>(null);
 
-  const [dataPinnedColumnsState, setDataPinnedColumnsState] = useState<PinnedColumnsState>({});
-  const [metaPinnedColumnsState, setMetaPinnedColumnsState] = useState<PinnedColumnsState>({});
+  const [dataPinnedColumnsState, setDataPinnedColumnsState] =
+    useState<PinnedColumnsState>({});
+  const [metaPinnedColumnsState, setMetaPinnedColumnsState] =
+    useState<PinnedColumnsState>({});
 
   // Data grid column handlers
   const handleDataPinColumn = useCallback(
@@ -59,7 +70,7 @@ export default function AgTable({ data, height = "350px" }: AgTableProps) {
         });
       }
     },
-    []
+    [],
   );
 
   const handleDataAutoSizeColumn = useCallback((colId: string) => {
@@ -92,7 +103,7 @@ export default function AgTable({ data, height = "350px" }: AgTableProps) {
         });
       }
     },
-    []
+    [],
   );
 
   const handleMetaAutoSizeColumn = useCallback((colId: string) => {
@@ -123,7 +134,12 @@ export default function AgTable({ data, height = "350px" }: AgTableProps) {
         onResetColumns: handleDataResetColumns,
       },
     }));
-  }, [data?.data, handleDataPinColumn, handleDataAutoSizeColumn, handleDataResetColumns]);
+  }, [
+    data?.data,
+    handleDataPinColumn,
+    handleDataAutoSizeColumn,
+    handleDataResetColumns,
+  ]);
 
   const metaColumnDefs = useMemo(() => {
     if (!data?.meta?.length) return [];
@@ -138,7 +154,12 @@ export default function AgTable({ data, height = "350px" }: AgTableProps) {
         onResetColumns: handleMetaResetColumns,
       },
     }));
-  }, [data?.meta, handleMetaPinColumn, handleMetaAutoSizeColumn, handleMetaResetColumns]);
+  }, [
+    data?.meta,
+    handleMetaPinColumn,
+    handleMetaAutoSizeColumn,
+    handleMetaResetColumns,
+  ]);
 
   // If no data is available yet or still loading
   if (!data || (!data.data && !data.meta && !data.statistics)) {
@@ -170,52 +191,56 @@ export default function AgTable({ data, height = "350px" }: AgTableProps) {
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="results" className="flex-1 min-h-0" style={{ height: 'auto' }}>
+      <TabsContent
+        value="results"
+        className="flex-1 min-h-0"
+        style={{ height: "auto" }}
+      >
         <div className="flex items-center justify-end pb-2">
           <DownloadDialog data={data.data || []} />
         </div>
         <div
-          className={`ag-theme-balham w-full overflow-auto ${isFull ? 'h-full flex-1 min-h-0' : ''}`}
+          className={`ag-theme-balham pb-5 w-full overflow-auto ${isFull ? "h-full flex-1 min-h-0" : ""}`}
           style={isFull ? undefined : { height: containerHeight }}
         >
           <AgGridWrapper
-              ref={dataGridRef}
-              rowData={data.data || []}
-              columnDefs={dataColumnDefs}
-              defaultColDef={defaultColDef}
-              modules={[AllCommunityModule]}
-              theme={gridTheme}
-              rowHeight={32}
-              domLayout="normal"
-              {...gridOptions}
-            />
+            ref={dataGridRef}
+            rowData={data.data || []}
+            columnDefs={dataColumnDefs}
+            defaultColDef={defaultColDef}
+            modules={[AllCommunityModule]}
+            theme={gridTheme}
+            rowHeight={32}
+            domLayout="normal"
+            {...gridOptions}
+          />
         </div>
       </TabsContent>
       <TabsContent
         value="metadata"
         className="flex-1 min-h-0"
-        style={{ height: 'auto' }}
+        style={{ height: "auto" }}
       >
         <div className="flex items-center justify-end pb-2">
           <DownloadDialog data={data?.meta || []} />
         </div>
         <div
-          className={`ag-theme-balham w-full overflow-auto ${isFull ? 'h-full flex-1 min-h-0' : ''}`}
+          className={`ag-theme-balham pb-5 w-full overflow-auto ${isFull ? "h-full flex-1 min-h-0" : ""}`}
           style={isFull ? undefined : { height: containerHeight }}
         >
           <AgGridWrapper
-              ref={metaGridRef}
-              rowData={data.meta || []}
-              columnDefs={metaColumnDefs}
-              defaultColDef={defaultColDef}
-              modules={[AllCommunityModule]}
-              theme={gridTheme}
-              rowHeight={32}
-              pagination={true}
-              paginationPageSize={100}
-              enableCellTextSelection={true}
-              animateRows={false}
-            />
+            ref={metaGridRef}
+            rowData={data.meta || []}
+            columnDefs={metaColumnDefs}
+            defaultColDef={defaultColDef}
+            modules={[AllCommunityModule]}
+            theme={gridTheme}
+            rowHeight={32}
+            pagination={true}
+            paginationPageSize={100}
+            enableCellTextSelection={true}
+            animateRows={false}
+          />
         </div>
       </TabsContent>
       <TabsContent value="statistics" className="flex-1 min-h-0 overflow-auto">

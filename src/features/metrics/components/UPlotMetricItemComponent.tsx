@@ -124,7 +124,7 @@ function UPlotMetricItemComponent({ item }: Props) {
         const rect = chartContainerRef.current.getBoundingClientRect();
         // Account for card header (~40px) and minimal padding
         // Add max cap to prevent infinite growth, and only update if change is significant
-        const availableHeight = Math.max(200, Math.min(rect.height - 50, 750));
+        const availableHeight = Math.max(200, Math.min(rect.height - 50, 350));
         // Only update if change is significant (>10px) to prevent feedback loops
         if (Math.abs(availableHeight - chartHeight) > 10) {
           setChartHeight(availableHeight);

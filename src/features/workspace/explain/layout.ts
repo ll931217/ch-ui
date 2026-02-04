@@ -13,6 +13,7 @@ interface LayoutNode {
   y: number;
   mod: number;
   children: LayoutNode[];
+  parent?: LayoutNode;
   thread?: LayoutNode;
   ancestor: LayoutNode;
   prelim: number;
@@ -57,7 +58,8 @@ export class TreeLayout {
    */
   private static initLayoutNode(
     node: ExplainNode,
-    depth: number = 0
+    depth: number = 0,
+    parent?: LayoutNode
   ): LayoutNode {
     const layoutNode: LayoutNode = {
       node,
@@ -70,13 +72,14 @@ export class TreeLayout {
       number: 0,
       ancestor: null as any,
       children: [],
+      parent,
     };
 
     layoutNode.ancestor = layoutNode;
 
     if (node.children && node.children.length > 0) {
       layoutNode.children = node.children.map((child, index) => {
-        const childLayout = this.initLayoutNode(child, depth + 1);
+        const childLayout = this.initLayoutNode(child, depth + 1, layoutNode);
         childLayout.number = index;
         return childLayout;
       });
@@ -160,8 +163,17 @@ export class TreeLayout {
       ) {
         vInnerLeft = this.nextRight(vInnerLeft)!;
         vInnerRight = this.nextLeft(vInnerRight)!;
-        vOuterLeft = this.nextLeft(vOuterLeft)!;
-        vOuterRight = this.nextRight(vOuterRight)!;
+
+        const newOuterLeft = this.nextLeft(vOuterLeft);
+        const newOuterRight = this.nextRight(vOuterRight);
+
+        // Break if outer pointers become null (tree structure edge case)
+        if (!newOuterLeft || !newOuterRight) {
+          break;
+        }
+
+        vOuterLeft = newOuterLeft;
+        vOuterRight = newOuterRight;
 
         vOuterRight.ancestor = node;
 
@@ -239,10 +251,14 @@ export class TreeLayout {
    * Helper functions
    */
   private static getLeftSibling(node: LayoutNode): LayoutNode | null {
-    // Implementation depends on parent tracking
-    // For simplicity, we'll return null
-    // In a full implementation, track parent and find left sibling
-    return null;
+    if (!node.parent) {
+      return null;
+    }
+
+    const siblings = node.parent.children;
+    const index = siblings.indexOf(node);
+
+    return index > 0 ? siblings[index - 1] : null;
   }
 
   private static nextLeft(node: LayoutNode): LayoutNode | null {

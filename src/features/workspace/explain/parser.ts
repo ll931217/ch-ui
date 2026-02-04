@@ -18,15 +18,28 @@ export class ExplainParser {
       // Try to parse as JSON first
       const firstRow = result.data[0];
       if (firstRow && typeof firstRow === 'object' && 'explain' in firstRow) {
-        // JSON format
-        const rawText = JSON.stringify(firstRow.explain, null, 2);
-        const tree = this.parseJsonFormat(firstRow.explain, explainType);
-        return {
-          type: explainType,
-          tree,
-          rawText,
-          rawJson: firstRow.explain,
-        };
+        if (typeof firstRow.explain === 'object' && firstRow.explain !== null) {
+          // True JSON format - explain is a structured object
+          const rawText = JSON.stringify(firstRow.explain, null, 2);
+          const tree = this.parseJsonFormat(firstRow.explain, explainType);
+          return {
+            type: explainType,
+            tree,
+            rawText,
+            rawJson: firstRow.explain,
+          };
+        } else {
+          // Text format with "explain" column - each row is one line
+          const rawText = result.data
+            .map((row: any) => String(row.explain))
+            .join('\n');
+          const tree = this.parseTextFormat(rawText, explainType);
+          return {
+            type: explainType,
+            tree,
+            rawText,
+          };
+        }
       }
 
       // Text format - extract text from rows
@@ -247,6 +260,16 @@ export class ExplainParser {
     // "Aggregating"
     // "ReadFromMergeTree (table_name)"
     // "Expression ((Projection + Before ORDER BY))"
+    // "(Expression)" - starts with parenthesis
+
+    // Handle lines starting with '(' like "(Expression)"
+    if (line.startsWith('(') && line.endsWith(')')) {
+      const content = line.slice(1, -1);
+      return {
+        name: content,
+        type: 'Step',
+      };
+    }
 
     // Extract type from parentheses
     const typeMatch = line.match(/^([^(]+)\s*\(([^)]+)\)/);

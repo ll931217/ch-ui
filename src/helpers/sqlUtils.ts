@@ -114,3 +114,45 @@ export const isCreateOrInsert = (query: string) => {
     setAllowPattern.test(lowerQuery)
   );
 };
+
+/**
+ * Detects if a query is an EXPLAIN query
+ */
+export function isExplainQuery(query: string): boolean {
+  const trimmed = query.trim().toUpperCase();
+  return trimmed.startsWith('EXPLAIN');
+}
+
+/**
+ * Extracts the EXPLAIN type from a query
+ * Returns: 'PIPELINE' | 'PLAN' | 'AST' | 'SYNTAX' | null
+ */
+export function getExplainType(query: string): 'PIPELINE' | 'PLAN' | 'AST' | 'SYNTAX' | null {
+  const trimmed = query.trim().toUpperCase();
+
+  if (!trimmed.startsWith('EXPLAIN')) {
+    return null;
+  }
+
+  // Match: EXPLAIN [TYPE] ...
+  if (trimmed.includes('EXPLAIN PIPELINE')) {
+    return 'PIPELINE';
+  } else if (trimmed.includes('EXPLAIN PLAN')) {
+    return 'PLAN';
+  } else if (trimmed.includes('EXPLAIN AST')) {
+    return 'AST';
+  } else if (trimmed.includes('EXPLAIN SYNTAX')) {
+    return 'SYNTAX';
+  }
+
+  // Default to PLAN if just "EXPLAIN SELECT ..."
+  return 'PLAN';
+}
+
+/**
+ * Checks if EXPLAIN query requests JSON output
+ */
+export function isJsonExplain(query: string): boolean {
+  const trimmed = query.trim().toLowerCase();
+  return /explain\s+\w+\s+json\s*=\s*1/i.test(trimmed);
+}

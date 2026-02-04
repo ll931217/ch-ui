@@ -10,6 +10,7 @@ import {
   CellContextMenuEvent,
   RowSelectionOptions,
 } from "ag-grid-community";
+import { AgGridWrapper } from "@/components/common/AgGridWrapper";
 import {
   createDefaultColDef,
   createGridOptions,
@@ -53,6 +54,7 @@ import DownloadDialog from "@/components/common/DownloadDialog";
 import EmptyQueryResult from "./EmptyQueryResult";
 import StatisticsDisplay from "./StatisticsDisplay";
 import MultiResultTabs from "./MultiResultTabs";
+import { ExplainTab } from "@/features/workspace/explain/components/ExplainTab";
 
 // Store
 import useAppStore from "@/store";
@@ -243,6 +245,20 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     [],
   );
 
+  // Selection column configuration to prevent resize interference
+  const selectionColumn = useMemo(
+    () => ({
+      width: 50,
+      minWidth: 50,
+      maxWidth: 50,
+      resizable: false,
+      suppressMovable: true,
+      lockPosition: "left" as const,
+      pinned: "left" as const,
+    }),
+    [],
+  );
+
   const handleCopyFormat = useCallback(
     (format: ExportFormat) => {
       const selectedRows = gridRef.current?.api.getSelectedRows() || [];
@@ -349,7 +365,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div className="flex-1 relative">
-              <AgGridReact
+              <AgGridWrapper
                 ref={gridRef}
                 rowData={rowData}
                 columnDefs={columnDefs}
@@ -359,6 +375,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
                 rowHeight={32}
                 suppressMovableColumns={false}
                 rowSelection={rowSelection}
+                selectionColumn={selectionColumn}
                 {...gridOptions}
               />
             </div>
@@ -384,7 +401,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     return (
       <div className="h-full flex flex-col">
         <div className="flex-1">
-          <AgGridReact
+          <AgGridWrapper
             ref={metaGridRef}
             rowData={tab.result.meta}
             columnDefs={[
@@ -433,6 +450,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const renderResultTabs = () => {
     const hasData = tab?.result?.data?.length > 0;
     const hasMeta = tab?.result?.meta?.length > 0;
+    const hasExplain = tab?.result?.explainResult !== undefined;
 
     return (
       <Tabs
@@ -471,6 +489,14 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
             )}
           </TabsTrigger>
           <TabsTrigger value="statistics">Statistics</TabsTrigger>
+          {hasExplain && (
+            <TabsTrigger value="explain">
+              Explain
+              <span className="ml-2 text-muted-foreground">
+                ({tab?.result.explainResult.type})
+              </span>
+            </TabsTrigger>
+          )}
 
           <div className="ml-auto flex items-center gap-1">
             {activeTab === "results" && lastQuery && (
@@ -513,6 +539,11 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
           <TabsContent value="statistics" className="h-full m-0">
             {renderStatisticsResults()}
           </TabsContent>
+          {hasExplain && (
+            <TabsContent value="explain" className="h-full m-0">
+              <ExplainTab explainResult={tab!.result.explainResult!} />
+            </TabsContent>
+          )}
         </div>
       </Tabs>
     );

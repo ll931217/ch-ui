@@ -11,7 +11,8 @@ import {
   MultiQueryResult,
 } from "@/types/common";
 import { createClient } from "@clickhouse/client-web";
-import { isCreateOrInsert } from "@/helpers/sqlUtils";
+import { isCreateOrInsert, isExplainQuery } from "@/helpers/sqlUtils";
+import { ExplainParser } from "@/features/workspace/explain/parser";
 import { OverflowMode } from "@clickhouse/client-common/dist/settings";
 import { toast } from "sonner";
 import { appQueries } from "@/features/workspace/editor/appQueries";
@@ -414,6 +415,13 @@ const useAppStore = create<AppState>()(
               rows: jsonResult.rows || 0,
               error: null,
             };
+
+            // Check if EXPLAIN query and parse result
+            if (isExplainQuery(trimmedQuery)) {
+              const explainResult = ExplainParser.parse(trimmedQuery, jsonResult);
+              processedResult.explainResult = explainResult;
+            }
+
             if (tabId)
               await get().updateTab(tabId, {
                 result: processedResult,

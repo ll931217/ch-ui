@@ -46,6 +46,27 @@ interface Tab {
   isDirty?: boolean;
 }
 
+export interface ExplainNode {
+  id: string;
+  name: string;
+  type: 'Expression' | 'Join' | 'Filter' | 'Aggregating' | 'ReadFromMergeTree' | string;
+  children: ExplainNode[];
+  metrics?: {
+    rows?: number;
+    bytes?: number;
+    time?: number;
+    cpu_time?: number;
+  };
+  rawData?: any;
+}
+
+export interface ExplainResult {
+  type: 'PIPELINE' | 'PLAN' | 'AST' | 'SYNTAX';
+  tree: ExplainNode;
+  rawText: string;
+  rawJson?: any;
+}
+
 export interface QueryResult {
   meta: any[];
   data: any[];
@@ -56,6 +77,7 @@ export interface QueryResult {
   };
   rows?: number;
   error?: string | null;
+  explainResult?: ExplainResult;
 }
 
 interface CoreState {

@@ -303,7 +303,7 @@ export default function DashboardGrid<T extends ItemLike>({
         <div
           className="grid grid-cols-12 gap-4"
           style={{
-            gridAutoRows: "minmax(100px, 500px)",
+            gridAutoRows: "minmax(100px, 150px)",
             minHeight: "400px",
           }}
         >

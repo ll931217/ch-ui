@@ -28,6 +28,7 @@ import useMetadata from "./hooks/useMetadata";
 import {
   GrantedPermission,
   findPermissionById,
+  findParentId,
   formatScope,
 } from "./PrivilegesSection/permissions";
 
@@ -186,33 +187,43 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
     const queries: string[] = [];
 
     if (data.privileges.isAdmin) {
-      queries.push(`GRANT ALL ON *.* TO ${username} WITH GRANT OPTION`);
+      // Use CURRENT GRANTS to only grant privileges the current user has
+      // This avoids permission errors when the current user doesn't have ALL privileges
+      queries.push(`GRANT CURRENT GRANTS() ON *.* TO ${username} WITH GRANT OPTION`);
       return queries;
     }
 
     // Use new hierarchical grants if available
     const grants: GrantedPermission[] = data.privileges.grants || [];
     if (grants.length > 0) {
-      // Group grants by scope for more efficient GRANT statements
-      const scopeGroups = new Map<string, string[]>();
+      // Create a map of granted permission IDs for quick lookup
+      const grantedIds = new Set(grants.map(g => g.permissionId));
+
+      // Track which privileges we've already granted to avoid duplicates
+      const grantedSet = new Set<string>();
 
       for (const grant of grants) {
         const permission = findPermissionById(grant.permissionId);
         if (!permission) continue;
 
-        const scopeKey = formatScope(grant.scope);
-        if (!scopeGroups.has(scopeKey)) {
-          scopeGroups.set(scopeKey, []);
+        // Skip if this permission's parent is also granted
+        // (parent privileges automatically include their children in ClickHouse)
+        const parentId = findParentId(grant.permissionId);
+        if (parentId && grantedIds.has(parentId)) {
+          continue; // Parent will cover this permission
         }
-        scopeGroups.get(scopeKey)!.push(permission.sqlPrivilege);
-      }
 
-      // Generate GRANT statements grouped by scope
-      for (const [scope, privileges] of scopeGroups) {
-        // Remove duplicates and sort for consistent output
-        const uniquePrivileges = [...new Set(privileges)].sort();
+        const scopeStr = formatScope(grant.scope);
+        const grantKey = `${permission.sqlPrivilege}:${scopeStr}`;
+
+        // Skip if already granted
+        if (grantedSet.has(grantKey)) continue;
+        grantedSet.add(grantKey);
+
+        // Generate individual GRANT statement for each permission
+        // This avoids issues with mixing incompatible privileges
         queries.push(
-          `GRANT ${uniquePrivileges.join(", ")} ON ${scope} TO ${username}`
+          `GRANT ${permission.sqlPrivilege} ON ${scopeStr} TO ${username}`
         );
       }
 

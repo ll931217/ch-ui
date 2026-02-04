@@ -68,7 +68,7 @@ const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
               <div className="space-y-1 leading-none">
                 <FormLabel>Admin Privileges</FormLabel>
                 <FormDescription>
-                  Grant all privileges (INCLUDING GRANT OPTION) on all databases
+                  Grant all current user's privileges (with GRANT OPTION) on all databases. The new user will have the same privileges as you.
                 </FormDescription>
               </div>
             </FormItem>

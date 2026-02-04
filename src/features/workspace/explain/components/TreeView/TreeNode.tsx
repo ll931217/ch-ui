@@ -5,38 +5,57 @@ import { cn } from '@/lib/utils';
 
 interface TreeNodeProps {
   node: TreeNodeLayout;
+  position: { x: number; y: number };  // Effective position with offset
   selected: boolean;
+  isAncestor: boolean;
   isBottleneck: boolean;
+  isDragging: boolean;
   onClick: (node: TreeNodeLayout) => void;
+  onDragStart: (node: TreeNodeLayout, e: React.MouseEvent) => void;
 }
 
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 60;
 
 export const TreeNode = React.memo<TreeNodeProps>(
-  ({ node, selected, isBottleneck, onClick }) => {
-    const handleClick = () => {
-      onClick(node);
+  ({ node, position, selected, isAncestor, isBottleneck, isDragging, onClick, onDragStart }) => {
+    const handleMouseDown = (e: React.MouseEvent) => {
+      onDragStart(node, e);
+    };
+
+    const handleClick = (e: React.MouseEvent) => {
+      // Only trigger click if not dragging
+      if (!isDragging) {
+        onClick(node);
+      }
     };
 
     return (
       <g
-        className="tree-node cursor-pointer"
+        className={cn(
+          "tree-node cursor-grab",
+          isDragging && "cursor-grabbing"
+        )}
+        onMouseDown={handleMouseDown}
         onClick={handleClick}
         data-node-id={node.id}
       >
         {/* Node rectangle */}
         <rect
-          x={node.x}
-          y={node.y}
+          x={position.x}
+          y={position.y}
           width={NODE_WIDTH}
           height={NODE_HEIGHT}
           rx={6}
           className={cn(
             'transition-all duration-200',
             'stroke-2',
-            selected
+            isDragging
+              ? 'fill-primary/20 stroke-primary drop-shadow-lg'
+              : selected
               ? 'fill-primary/10 stroke-primary'
+              : isAncestor
+              ? 'fill-primary/5 stroke-primary/50'
               : isBottleneck
               ? 'fill-destructive/10 stroke-destructive'
               : 'fill-card stroke-border hover:stroke-primary/50'
@@ -45,8 +64,8 @@ export const TreeNode = React.memo<TreeNodeProps>(
 
         {/* Node name */}
         <text
-          x={node.x + NODE_WIDTH / 2}
-          y={node.y + 20}
+          x={position.x + NODE_WIDTH / 2}
+          y={position.y + 20}
           textAnchor="middle"
           className={cn(
             'text-sm font-semibold pointer-events-none',
@@ -62,8 +81,8 @@ export const TreeNode = React.memo<TreeNodeProps>(
 
         {/* Node type */}
         <text
-          x={node.x + NODE_WIDTH / 2}
-          y={node.y + 38}
+          x={position.x + NODE_WIDTH / 2}
+          y={position.y + 38}
           textAnchor="middle"
           className="text-xs fill-muted-foreground pointer-events-none"
         >
@@ -73,8 +92,8 @@ export const TreeNode = React.memo<TreeNodeProps>(
         {/* Metrics */}
         {node.metrics && (
           <text
-            x={node.x + NODE_WIDTH / 2}
-            y={node.y + 52}
+            x={position.x + NODE_WIDTH / 2}
+            y={position.y + 52}
             textAnchor="middle"
             className="text-xs fill-muted-foreground pointer-events-none"
           >
@@ -85,8 +104,8 @@ export const TreeNode = React.memo<TreeNodeProps>(
         {/* Bottleneck indicator */}
         {isBottleneck && (
           <circle
-            cx={node.x + NODE_WIDTH - 8}
-            cy={node.y + 8}
+            cx={position.x + NODE_WIDTH - 8}
+            cy={position.y + 8}
             r={4}
             className="fill-destructive"
           />

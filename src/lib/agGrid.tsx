@@ -98,6 +98,7 @@ export const createGridOptions = (rowCount: number): Partial<GridOptions> => {
   return {
     pagination: true,
     paginationPageSize: 100,
+    suppressPaginationPanel: true, // Use custom pagination component
     enableCellTextSelection: false,
     animateRows: !isLargeDataset, // Disable animations for large datasets
     suppressMovableColumns: false,
@@ -174,17 +175,26 @@ export const createAgGridTheme = (theme: Theme) => {
     ? themeBalham
     : themeBalham.withPart(colorSchemeDark);
 
+  // Use foreground color with opacity for visible borders
+  const foregroundColor = getCssVarAsHsl("--foreground");
+  const borderColor = foregroundColor.replace(")", " / 0.2)");
+
   return baseTheme.withParams({
     backgroundColor: getCssVarAsHsl("--background"),
-    foregroundColor: getCssVarAsHsl("--foreground"),
-    borderColor: getCssVarAsHsl("--border"),
+    foregroundColor: foregroundColor,
+    borderColor: borderColor,
     chromeBackgroundColor: getCssVarAsHsl("--muted"),
     headerBackgroundColor: getCssVarAsHsl("--muted"),
-    headerTextColor: getCssVarAsHsl("--foreground"),
+    headerTextColor: foregroundColor,
     rowHoverColor: getCssVarAsHsl("--select-row"),
     accentColor: getCssVarAsHsl("--accent"),
     selectedRowBackgroundColor: getCssVarAsHsl("--selected-row"),
     oddRowBackgroundColor: getCssVarAsHsl("--background"),
     modalOverlayBackgroundColor: getCssVarAsHsl("--background"),
+    // Header column separator (vertical borders between headers)
+    headerColumnBorderColor: borderColor,
+    headerColumnBorderHeight: "100%",
+    // Column borders
+    columnBorder: true,
   });
 };

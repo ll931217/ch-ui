@@ -37,12 +37,26 @@ export function formatNumber(number: number) {
 
 
 export function generateRandomPassword(length: number = 12) {
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
+  const lowercase = "abcdefghijklmnopqrstuvwxyz";
+  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const digits = "0123456789";
+  const special = "!@#$%^&*";
+  const all = lowercase + uppercase + digits + special;
+
+  // Ensure at least one from each category
+  const required = [
+    lowercase[Math.floor(Math.random() * lowercase.length)],
+    uppercase[Math.floor(Math.random() * uppercase.length)],
+    digits[Math.floor(Math.random() * digits.length)],
+    special[Math.floor(Math.random() * special.length)],
+  ];
+
+  // Fill remaining with random chars
+  for (let i = required.length; i < length; i++) {
+    required.push(all[Math.floor(Math.random() * all.length)]);
   }
-  return password;
+
+  // Shuffle to randomize positions
+  return required.sort(() => Math.random() - 0.5).join("");
 }
 

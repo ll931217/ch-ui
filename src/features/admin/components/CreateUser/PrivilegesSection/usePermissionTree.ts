@@ -36,6 +36,7 @@ interface UsePermissionTreeReturn {
   // Helpers
   getSelectedCount: () => number;
   clearAll: () => void;
+  selectAll: (scope?: PermissionScope) => void;
 }
 
 const DEFAULT_SCOPE: PermissionScope = { type: "global" };
@@ -235,6 +236,37 @@ export function usePermissionTree(
     setGrantsMap(new Map());
   }, []);
 
+  const selectAll = useCallback(
+    (scope?: PermissionScope) => {
+      const effectiveScope = scope || defaultScope;
+      const allIds: string[] = [];
+
+      // Collect all permission IDs from hierarchy
+      const collectIds = (nodes: PermissionNode[]) => {
+        for (const node of nodes) {
+          allIds.push(node.id);
+          if (node.children) {
+            collectIds(node.children);
+          }
+        }
+      };
+      collectIds(PERMISSION_HIERARCHY);
+
+      // Create grants for all permissions
+      const newMap = new Map<string, GrantedPermission>();
+      for (const id of allIds) {
+        const node = findPermissionById(id);
+        if (node) {
+          const nodeScope = getBestScope(node, effectiveScope);
+          newMap.set(id, { permissionId: id, scope: nodeScope });
+        }
+      }
+
+      setGrantsMap(newMap);
+    },
+    [defaultScope, getBestScope]
+  );
+
   return {
     grants,
     setGrants,
@@ -249,5 +281,6 @@ export function usePermissionTree(
     getPermissionScope,
     getSelectedCount,
     clearAll,
+    selectAll,
   };
 }

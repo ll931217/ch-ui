@@ -117,7 +117,7 @@ export const PERMISSION_HIERARCHY: PermissionNode[] = [
   // ALTER permissions (table/view scope)
   perm("ALTER", "ALTER", "ALTER", ["database", "table"], [
     perm("ALTER_TABLE", "TABLE", "ALTER TABLE", ["database", "table"], ALTER_TABLE_CHILDREN, "Table modifications"),
-    perm("ALTER_LIVE_VIEW", "LIVE VIEW", "ALTER VIEW", ["database", "table"], ALTER_LIVE_VIEW_CHILDREN, "Live view modifications"),
+    perm("ALTER_LIVE_VIEW", "LIVE VIEW", "ALTER LIVE VIEW", ["database", "table"], ALTER_LIVE_VIEW_CHILDREN, "Live view modifications"),
   ], "Modify tables and views"),
 
   // Administrative ALTER permissions (no table scope)

@@ -6,7 +6,6 @@ import {
   ComboboxList,
   ComboboxItem,
   ComboboxEmpty,
-  ComboboxCollection,
 } from "@/components/ui/combobox";
 import { PermissionScope, ScopeType } from "./permissions";
 
@@ -136,7 +135,6 @@ const ScopeSelector: React.FC<ScopeSelectorProps> = ({
       disabled={disabled}
       items={scopeOptions}
     >
-      <ComboboxCollection items={scopeOptions} />
       <ComboboxInput
         value={inputValue}
         onValueChange={setInputValue}

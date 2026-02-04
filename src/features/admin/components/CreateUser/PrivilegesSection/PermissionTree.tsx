@@ -47,6 +47,7 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
     getPermissionScope,
     getSelectedCount,
     clearAll: baseClearAll,
+    selectAll: baseSelectAll,
   } = usePermissionTree({ defaultScope, initialGrants: value });
 
   // Helper for deep comparison of grants arrays (Set-based, not index-based)
@@ -96,6 +97,10 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
   const handleClearAll = useCallback(() => {
     baseClearAll();
   }, [baseClearAll]);
+
+  const handleSelectAll = useCallback(() => {
+    baseSelectAll();
+  }, [baseSelectAll]);
 
   // Notify parent when grants change (but not if it matches what we just received from props)
   const prevGrantsRef = useRef<GrantedPermission[]>(value || []);
@@ -213,6 +218,17 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
           <Badge variant="secondary" className="font-normal">
             {selectedCount} / {totalCount} selected
           </Badge>
+          {selectedCount < totalCount && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleSelectAll}
+              className="h-8 px-2"
+            >
+              Select all
+            </Button>
+          )}
           {selectedCount > 0 && (
             <Button
               type="button"

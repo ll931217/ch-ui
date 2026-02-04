@@ -3,8 +3,17 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxChip,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+  useComboboxAnchor
+} from "@/components/ui/combobox";
 
 interface DatabaseRolesSectionProps {
   form: any;
@@ -77,54 +86,39 @@ const DatabaseRolesSection: React.FC<DatabaseRolesSectionProps> = ({ form, roles
         <FormField
           control={form.control}
           name="grantDatabases"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Grant Access to Databases</FormLabel>
-              <Select
-                onValueChange={(value: string) => {
-                  if (!grantDatabases.includes(value)) {
-                    form.setValue("grantDatabases", [...grantDatabases, value]);
-                  }
-                }}
-              >
+          render={({ field }) => {
+            const anchor = useComboboxAnchor();
+
+            return (
+              <FormItem>
+                <FormLabel>Grant Access to Databases</FormLabel>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select databases to grant access" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {databases.map((db) => (
-                    <SelectItem
-                      key={db}
-                      value={db}
-                      disabled={grantDatabases.includes(db)}
-                    >
-                      {db}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {grantDatabases.map((db: string) => (
-                  <Badge
-                    key={db}
-                    variant="secondary"
-                    className="hover:bg-destructive hover:text-destructive-foreground cursor-pointer"
-                    onClick={() =>
-                      form.setValue(
-                        "grantDatabases",
-                        grantDatabases.filter((v: string) => v !== db)
-                      )
-                    }
+                  <Combobox
+                    multiple
+                    value={field.value || []}
+                    onValueChange={(values) => {
+                      form.setValue("grantDatabases", values);
+                    }}
                   >
-                    {db}
-                    <X className="ml-1 h-3 w-3" />
-                  </Badge>
-                ))}
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
+                    <ComboboxChips ref={anchor}>
+                      <ComboboxChipsInput placeholder="Select databases to grant access" />
+                    </ComboboxChips>
+                    <ComboboxContent anchor={anchor.current}>
+                      <ComboboxList>
+                        {databases.map((db) => (
+                          <ComboboxItem key={db} value={db}>
+                            {db}
+                          </ComboboxItem>
+                        ))}
+                        <ComboboxEmpty>No databases found</ComboboxEmpty>
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
       </CardContent>
     </Card>

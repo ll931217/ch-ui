@@ -29,10 +29,24 @@ export class ExplainParser {
         };
       }
 
-      // Text format - concatenate all rows
-      const rawText = result.data
-        .map((row: any) => Object.values(row)[0])
-        .join('\n');
+      // Text format - extract text from rows
+      // ClickHouse returns EXPLAIN output as rows with a single column
+      let rawText = '';
+
+      // Handle different row structures
+      if (result.data.length > 0) {
+        const firstRow = result.data[0];
+        const columnName = Object.keys(firstRow)[0];
+
+        // Extract all rows
+        rawText = result.data
+          .map((row: any) => {
+            const value = row[columnName];
+            return typeof value === 'string' ? value : String(value);
+          })
+          .join('\n');
+      }
+
       const tree = this.parseTextFormat(rawText, explainType);
       return {
         type: explainType,
@@ -132,7 +146,13 @@ export class ExplainParser {
    * Parse text format EXPLAIN output (indentation-based)
    */
   private static parseTextFormat(text: string, explainType: string): ExplainNode {
-    const lines = text.split('\n').filter((line) => line.trim().length > 0);
+    let lines = text.split('\n').filter((line) => line.trim().length > 0);
+
+    // Skip header line if present (e.g., "EXPLAIN PIPELINE")
+    if (lines.length > 0 && lines[0].trim().toUpperCase().startsWith('EXPLAIN')) {
+      lines = lines.slice(1);
+    }
+
     if (lines.length === 0) {
       return {
         id: 'root',
@@ -154,11 +174,21 @@ export class ExplainParser {
 
     const parsedLines: ParsedLine[] = [];
 
+    // Auto-detect indentation width
+    let indentWidth = 2; // default
+    const indentedLine = lines.find((line) => line.match(/^\s+/));
+    if (indentedLine) {
+      const match = indentedLine.match(/^(\s+)/);
+      if (match) {
+        indentWidth = match[1].length;
+      }
+    }
+
     lines.forEach((line) => {
-      // Calculate indentation level (2 spaces = 1 level)
+      // Calculate indentation level
       const match = line.match(/^(\s*)/);
       const indentation = match ? match[1].length : 0;
-      const level = Math.floor(indentation / 2);
+      const level = indentation > 0 ? Math.floor(indentation / indentWidth) : 0;
       const text = line.trim();
 
       // Extract node name and type
@@ -221,15 +251,21 @@ export class ExplainParser {
     // Extract type from parentheses
     const typeMatch = line.match(/^([^(]+)\s*\(([^)]+)\)/);
     if (typeMatch) {
-      const name = typeMatch[1].trim();
-      const type = typeMatch[2].trim();
-      return { name, type };
+      const operatorType = typeMatch[1].trim();
+      const details = typeMatch[2].trim();
+      // Use the detail as name, operator as type
+      // e.g., "Expression (Projection)" -> name: "Projection", type: "Expression"
+      return {
+        name: details || operatorType,
+        type: operatorType
+      };
     }
 
-    // No parentheses - use the whole line as name
+    // No parentheses - use the whole line as both name and type
+    const parts = line.split(' ');
     return {
       name: line,
-      type: line.split(' ')[0] || 'Expression',
+      type: parts[0] || 'Expression',
     };
   }
 }

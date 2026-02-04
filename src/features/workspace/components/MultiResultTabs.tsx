@@ -6,6 +6,7 @@ import {
   AllCommunityModule,
   ColumnPinnedType,
 } from "ag-grid-community";
+import { AgGridWrapper } from "@/components/common/AgGridWrapper";
 import {
   createDefaultColDef,
   createGridOptions,
@@ -204,7 +205,7 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
     return (
       <div className="h-full flex flex-col">
         <div className="flex-1">
-          <AgGridReact
+          <AgGridWrapper
             ref={gridRef}
             rowData={rowData}
             columnDefs={columnDefs}
@@ -226,7 +227,7 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
     return (
       <div className="h-full flex flex-col">
         <div className="flex-1">
-          <AgGridReact
+          <AgGridWrapper
             ref={metaGridRef}
             rowData={currentResult.result.meta}
             columnDefs={[

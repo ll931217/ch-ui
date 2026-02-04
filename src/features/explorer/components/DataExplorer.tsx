@@ -58,15 +58,17 @@ const DatabaseExplorer: React.FC = () => {
     // When a specific database is selected, return folders directly (flattened)
     if (selectedDatabase && filteredDatabases.length === 1) {
       const db = filteredDatabases[0];
-      const tables = db.children.filter(
-        (child) => child.type === "table",
-      ) as TreeNodeData[];
-      const views = db.children.filter(
-        (child) => child.type === "view" || child.type === "materialized_view",
-      ) as TreeNodeData[];
-      const dictionaries = db.children.filter(
-        (child) => child.type === "dictionary",
-      ) as TreeNodeData[];
+      const tables = db.children
+        .filter((child) => child.type === "table")
+        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
+      const views = db.children
+        .filter(
+          (child) => child.type === "view" || child.type === "materialized_view",
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
+      const dictionaries = db.children
+        .filter((child) => child.type === "dictionary")
+        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
 
       const folders: TreeNodeData[] = [];
 
@@ -99,15 +101,17 @@ const DatabaseExplorer: React.FC = () => {
 
     // When showing all databases, include database nodes
     return filteredDatabases.map((db) => {
-      const tables = db.children.filter(
-        (child) => child.type === "table",
-      ) as TreeNodeData[];
-      const views = db.children.filter(
-        (child) => child.type === "view" || child.type === "materialized_view",
-      ) as TreeNodeData[];
-      const dictionaries = db.children.filter(
-        (child) => child.type === "dictionary",
-      ) as TreeNodeData[];
+      const tables = db.children
+        .filter((child) => child.type === "table")
+        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
+      const views = db.children
+        .filter(
+          (child) => child.type === "view" || child.type === "materialized_view",
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
+      const dictionaries = db.children
+        .filter((child) => child.type === "dictionary")
+        .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
 
       const folders: TreeNodeData[] = [];
 
@@ -158,7 +162,10 @@ const DatabaseExplorer: React.FC = () => {
     try {
       const result = await fetchSavedQueries();
       if (result) {
-        setSavedQueriesList(result);
+        const sortedQueries = [...result].sort((a, b) =>
+          a.name.localeCompare(b.name),
+        );
+        setSavedQueriesList(sortedQueries);
       } else {
         console.warn("No saved queries found or invalid response.");
         setSavedQueriesList([]);
@@ -172,9 +179,6 @@ const DatabaseExplorer: React.FC = () => {
   useEffect(() => {
     // Only fetch data if client is initialized
     if (!clickHouseClient) {
-      console.log(
-        "DataExplorer: Waiting for ClickHouse client to be initialized...",
-      );
       return;
     }
 

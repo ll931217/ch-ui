@@ -34,7 +34,7 @@ export const ExplainToolbar: React.FC<ExplainToolbarProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-between p-3 border-b bg-card">
+    <div className="flex items-center justify-between px-2 py-1.5 border-b bg-card">
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium">EXPLAIN {explainResult.type}</span>
       </div>
@@ -42,7 +42,7 @@ export const ExplainToolbar: React.FC<ExplainToolbarProps> = ({
       <div className="flex items-center gap-2">
         {/* View Type Selector */}
         <Select value={viewType} onValueChange={onViewTypeChange}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-[140px]" size="sm">
             <SelectValue placeholder="Select view" />
           </SelectTrigger>
           <SelectContent>

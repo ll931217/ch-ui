@@ -1,13 +1,13 @@
 // src/features/workspace/explain/components/ExplainVisualization.tsx
-import React from 'react';
-import { ExplainResult } from '@/types/common';
-import { TreeView } from './TreeView/TreeView';
-import { JsonView } from './JsonView';
-import { TextView } from './TextView';
+import React from "react";
+import { ExplainResult } from "@/types/common";
+import { TreeView } from "./TreeView/TreeView";
+import { JsonView } from "./JsonView";
+import { TextView } from "./TextView";
 
 interface ExplainVisualizationProps {
   explainResult: ExplainResult;
-  viewType: 'tree' | 'json' | 'text';
+  viewType: "tree" | "json" | "text";
   onNodeSelect?: (node: any) => void;
 }
 
@@ -17,16 +17,13 @@ export const ExplainVisualization: React.FC<ExplainVisualizationProps> = ({
   onNodeSelect,
 }) => {
   switch (viewType) {
-    case 'tree':
+    case "tree":
       return (
-        <TreeView
-          explainResult={explainResult}
-          onNodeSelect={onNodeSelect}
-        />
+        <TreeView explainResult={explainResult} onNodeSelect={onNodeSelect} />
       );
-    case 'json':
+    case "json":
       return <JsonView explainResult={explainResult} />;
-    case 'text':
+    case "text":
       return <TextView explainResult={explainResult} />;
     default:
       return (

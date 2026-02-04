@@ -1,17 +1,16 @@
-// src/features/workspace/explain/components/ExplainTab.tsx
-import React, { useState } from 'react';
-import { ExplainResult } from '@/types/common';
-import { ExplainToolbar } from './ExplainToolbar';
-import { ExplainVisualization } from './ExplainVisualization';
-import { NodeDetailsPanel } from './NodeDetailsPanel';
-import { TreeNodeLayout } from '../layout';
+import React, { useState } from "react";
+import { ExplainResult } from "@/types/common";
+import { ExplainToolbar } from "./ExplainToolbar";
+import { ExplainVisualization } from "./ExplainVisualization";
+import { NodeDetailsPanel } from "./NodeDetailsPanel";
+import { TreeNodeLayout } from "../layout";
 
 interface ExplainTabProps {
   explainResult: ExplainResult;
 }
 
 export const ExplainTab: React.FC<ExplainTabProps> = ({ explainResult }) => {
-  const [viewType, setViewType] = useState<'tree' | 'json' | 'text'>('tree');
+  const [viewType, setViewType] = useState<"tree" | "json" | "text">("tree");
   const [selectedNode, setSelectedNode] = useState<TreeNodeLayout | null>(null);
 
   return (
@@ -35,12 +34,9 @@ export const ExplainTab: React.FC<ExplainTabProps> = ({ explainResult }) => {
         </div>
 
         {/* Details Panel (only for tree view) */}
-        {viewType === 'tree' && (
+        {viewType === "tree" && (
           <div className="w-80 border-l overflow-hidden">
-            <NodeDetailsPanel
-              node={selectedNode}
-              tree={explainResult.tree}
-            />
+            <NodeDetailsPanel node={selectedNode} tree={explainResult.tree} />
           </div>
         )}
       </div>

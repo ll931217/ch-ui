@@ -8,18 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  MoreHorizontal,
   Key,
   Trash,
   Lock,
@@ -28,6 +19,7 @@ import {
   Network,
   Database,
   KeyRound,
+  Edit,
 } from "lucide-react";
 import TooltipWrapper from "./TooltipWrapper";
 import { UserData } from "../../types";
@@ -37,6 +29,7 @@ interface UsersTableProps {
   setSelectedUser: (username: string | null) => void;
   setShowDeleteDialog: (show: boolean) => void;
   setShowResetPasswordDialog: (show: boolean) => void;
+  setShowEditDialog: (show: boolean) => void;
 }
 
 const UsersTable: React.FC<UsersTableProps> = ({
@@ -44,6 +37,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
   setSelectedUser,
   setShowDeleteDialog,
   setShowResetPasswordDialog,
+  setShowEditDialog,
 }) => {
   const getHostAccess = (user: UserData) => {
     if (user.host_ip?.length) return `IP: ${user.host_ip.join(", ")}`;
@@ -73,7 +67,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
             <TableHead>Roles & Database</TableHead>
             <TableHead>Access</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="w-[100px]">Actions</TableHead>
+            <TableHead className="w-[140px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -152,41 +146,47 @@ const UsersTable: React.FC<UsersTableProps> = ({
                 </div>
               </TableCell>
               <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                <div className="flex items-center gap-1">
+                  <TooltipWrapper content="Edit User">
                     <Button
                       variant="ghost"
-                      className="h-8 w-8 p-0"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => {
+                        setSelectedUser(user.name);
+                        setShowEditDialog(true);
+                      }}
                     >
-                      <MoreHorizontal className="h-4 w-4" />
+                      <Edit className="h-4 w-4" />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>User Actions</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="gap-2"
+                  </TooltipWrapper>
+                  <TooltipWrapper content="Reset Password">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-amber-600"
                       onClick={() => {
                         setSelectedUser(user.name);
                         setShowResetPasswordDialog(true);
                       }}
                     >
                       <Key className="h-4 w-4" />
-                      Reset Password
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="gap-2 text-destructive"
+                    </Button>
+                  </TooltipWrapper>
+                  <TooltipWrapper content="Delete User">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
                       onClick={() => {
                         setSelectedUser(user.name);
                         setShowDeleteDialog(true);
                       }}
                     >
                       <Trash className="h-4 w-4" />
-                      Delete User
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    </Button>
+                  </TooltipWrapper>
+                </div>
               </TableCell>
             </TableRow>
           ))}

@@ -18,7 +18,8 @@ import ResetPasswordDialog from "./ResetPasswordDialog";
 import NewPasswordDialog from "./NewPasswordDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserData } from "@/features/admin/types";
-import CreateNewUser from "../CreateUser/index"
+import CreateNewUser from "../CreateUser/index";
+import EditUser from "../CreateUser/EditUser";
 import { generateRandomPassword } from "@/lib/utils";
 
 const UserTable: React.FC = () => {
@@ -29,6 +30,7 @@ const UserTable: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -215,6 +217,7 @@ const UserTable: React.FC = () => {
           setSelectedUser={setSelectedUser}
           setShowDeleteDialog={setShowDeleteDialog}
           setShowResetPasswordDialog={setShowResetPasswordDialog}
+          setShowEditDialog={setShowEditDialog}
         />
       </CardContent>
 
@@ -239,6 +242,13 @@ const UserTable: React.FC = () => {
         selectedUser={selectedUser}
         onDeleteUser={handleDeleteUser}
         deleting={deleting}
+      />
+
+      <EditUser
+        username={selectedUser}
+        isOpen={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        onUserUpdated={() => setRefreshTrigger((prev) => prev + 1)}
       />
     </Card>
   );

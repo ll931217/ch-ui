@@ -10,9 +10,14 @@ import { Eye, EyeOff, Key } from "lucide-react";
 interface AuthenticationSectionProps {
   form: any;
   handleGeneratePassword: () => void;
+  isEditMode?: boolean;
 }
 
-const AuthenticationSection: React.FC<AuthenticationSectionProps> = ({ form, handleGeneratePassword }) => {
+const AuthenticationSection: React.FC<AuthenticationSectionProps> = ({
+  form,
+  handleGeneratePassword,
+  isEditMode = false,
+}) => {
   const [showPassword, setShowPassword] = React.useState(false);
 
   return (
@@ -39,7 +44,13 @@ const AuthenticationSection: React.FC<AuthenticationSectionProps> = ({ form, han
             <FormItem>
               <FormLabel>Username</FormLabel>
               <FormControl>
-                <Input placeholder="Enter username" {...field} />
+                <Input
+                  placeholder="Enter username"
+                  {...field}
+                  readOnly={isEditMode}
+                  disabled={isEditMode}
+                  className={isEditMode ? "bg-muted" : ""}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -50,8 +61,11 @@ const AuthenticationSection: React.FC<AuthenticationSectionProps> = ({ form, han
           control={form.control}
           name="password"
           rules={{
-            required: "Password is required",
+            required: isEditMode ? false : "Password is required",
             validate: (value: string) => {
+              // Skip validation if in edit mode and password is empty
+              if (isEditMode && !value) return true;
+
               if (value.length < 12) {
                 return "Password must be at least 12 characters";
               }
@@ -68,13 +82,13 @@ const AuthenticationSection: React.FC<AuthenticationSectionProps> = ({ form, han
           }}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>{isEditMode ? "New Password (Optional)" : "Password"}</FormLabel>
               <div className="flex space-x-2 w-full">
                 <FormControl>
                   <div className="relative flex-1">
                     <Input
                       type={showPassword ? "text" : "password"}
-                      placeholder="Enter password"
+                      placeholder={isEditMode ? "Leave blank to keep current password" : "Enter password"}
                       className="w-full"
                       {...field}
                     />
@@ -102,6 +116,11 @@ const AuthenticationSection: React.FC<AuthenticationSectionProps> = ({ form, han
                   <span className="hidden md:block">Generate</span>
                 </Button>
               </div>
+              {isEditMode && (
+                <p className="text-sm text-muted-foreground">
+                  Leave blank to keep current password
+                </p>
+              )}
               <FormMessage />
             </FormItem>
           )}

@@ -98,10 +98,7 @@ export function ConfirmationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-lg"
-        onKeyDown={handleKeyDown}
-      >
+      <DialogContent className="max-w-lg" onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {variant === "destructive" && (
@@ -119,7 +116,7 @@ export function ConfirmationDialog({
           {impactPreview && impactPreview.length > 0 && (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Impact Preview</Label>
-              <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+              <div className="border rounded-md p-3 mt-2 space-y-2 bg-muted/30">
                 {impactPreview.map((item, index) => (
                   <div key={index} className="flex items-start gap-2 text-sm">
                     {item.type === "warning" ? (
@@ -127,7 +124,13 @@ export function ConfirmationDialog({
                     ) : (
                       <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
                     )}
-                    <span className={item.type === "warning" ? "text-yellow-600 dark:text-yellow-400" : ""}>
+                    <span
+                      className={
+                        item.type === "warning"
+                          ? "text-yellow-600 dark:text-yellow-400"
+                          : ""
+                      }
+                    >
                       {item.message}
                     </span>
                   </div>
@@ -140,7 +143,11 @@ export function ConfirmationDialog({
           {requiresTypedConfirmation && entityName && (
             <div className="space-y-2">
               <Label htmlFor="confirm-name" className="text-sm font-medium">
-                Type <Badge variant="secondary" className="mx-1 font-mono">{entityName}</Badge> to confirm
+                Type{" "}
+                <Badge variant="secondary" className="mx-1 font-mono">
+                  {entityName}
+                </Badge>{" "}
+                to confirm
               </Label>
               <Input
                 id="confirm-name"
@@ -150,13 +157,21 @@ export function ConfirmationDialog({
                 placeholder={`Type "${entityName}" to confirm`}
                 autoComplete="off"
                 autoFocus
-                className="font-mono"
+                className="mt-2 font-mono"
                 aria-required="true"
                 aria-invalid={typedName !== "" && typedName !== entityName}
-                aria-describedby={typedName && typedName !== entityName ? "confirm-name-error" : undefined}
+                aria-describedby={
+                  typedName && typedName !== entityName
+                    ? "confirm-name-error"
+                    : undefined
+                }
               />
               {typedName && typedName !== entityName && (
-                <p className="text-xs text-red-500" id="confirm-name-error" role="alert">
+                <p
+                  className="text-xs text-red-500"
+                  id="confirm-name-error"
+                  role="alert"
+                >
                   Name does not match. Please type exactly: {entityName}
                 </p>
               )}

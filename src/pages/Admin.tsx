@@ -5,6 +5,7 @@ import { InfoIcon, ShieldCheck } from "lucide-react";
 import InfoDialog from "@/components/common/InfoDialog";
 import AuditLogViewer from "@/features/admin/components/PermissionsConfig/AuditLogViewer";
 import useAppStore from "@/store";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function Admin() {
   const { userPrivileges } = useAppStore();
@@ -15,8 +16,9 @@ export default function Admin() {
   const canViewUsersRoles = userPrivileges?.canShowUsers || userPrivileges?.canShowRoles;
 
   return (
-    <div className="max-h-screen w-full overflow-y-auto">
-      <div className="container mx-auto p-6">
+    <ErrorBoundary>
+      <div className="max-h-screen w-full overflow-y-auto">
+        <div className="container mx-auto p-6">
         <div className="mb-8">
           <h1 className="text-3xl font-medium  mb-2 flex items-center gap-2">
             <ShieldCheck className="w-6 h-6" />
@@ -125,7 +127,8 @@ export default function Admin() {
             </p>
           </div>
         </InfoDialog>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

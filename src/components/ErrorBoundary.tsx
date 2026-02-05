@@ -1,7 +1,8 @@
 import React, { Component, ReactNode } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -56,6 +57,29 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     });
   };
 
+  handleCopyError = (): void => {
+    const { error, errorInfo } = this.state;
+    const errorText = `
+Error: ${error?.message || "Unknown error"}
+
+Stack:
+${error?.stack || "No stack trace available"}
+
+Component Stack:
+${errorInfo?.componentStack || "No component stack available"}
+    `.trim();
+
+    navigator.clipboard.writeText(errorText).then(
+      () => {
+        toast.success("Error details copied to clipboard");
+      },
+      (err) => {
+        console.error("Failed to copy error details:", err);
+        toast.error("Failed to copy error details");
+      }
+    );
+  };
+
   render(): ReactNode {
     if (this.state.hasError) {
       // Use custom fallback if provided
@@ -96,6 +120,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <div className="flex gap-2">
                 <Button onClick={this.handleReset} variant="default" size="sm">
                   Try Again
+                </Button>
+                <Button
+                  onClick={this.handleCopyError}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copy Error
                 </Button>
                 <Button
                   onClick={() => window.location.reload()}

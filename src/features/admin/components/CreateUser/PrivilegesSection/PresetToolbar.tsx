@@ -201,7 +201,7 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
           onClick={handleSavePreset}
           disabled={!selectedPreset}
           title="Update selected preset"
-          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+          className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
         >
           <Save className="h-4 w-4" />
         </Button>
@@ -211,7 +211,7 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
           size="icon"
           onClick={() => setCreateDialogOpen(true)}
           title="Create new preset"
-          className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+          className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -222,7 +222,7 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
           onClick={() => setDeleteDialogOpen(true)}
           disabled={!selectedPreset}
           title="Delete selected preset"
-          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+          className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -233,7 +233,7 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
           onClick={handleExportPresets}
           disabled={presets.length === 0}
           title="Export all presets"
-          className="text-muted-foreground hover:text-foreground"
+          className="cursor-pointer text-muted-foreground hover:text-foreground"
         >
           <Download className="h-4 w-4" />
         </Button>
@@ -243,7 +243,7 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
           size="icon"
           onClick={() => fileInputRef.current?.click()}
           title="Import presets"
-          className="text-muted-foreground hover:text-foreground"
+          className="cursor-pointer text-muted-foreground hover:text-foreground"
         >
           <Upload className="h-4 w-4" />
         </Button>

@@ -114,6 +114,7 @@ function SortableTab({ tab, isActive, onActivate }: SortableTabProps) {
               <span
                 className="cursor-pointer shrink-0"
                 onClick={(e) => {
+                  e.preventDefault();
                   e.stopPropagation();
                   removeTab(tab.id);
                 }}

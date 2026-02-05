@@ -9,6 +9,8 @@ import {
   FilePlus,
   TerminalIcon,
   FileUp,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import useAppStore from "@/store";
 import TreeNode, {
@@ -26,6 +28,8 @@ import ConnectionSwitcher from "@/features/connections/components/ConnectionSwit
 import DatabaseSelector from "@/features/explorer/components/DatabaseSelector";
 import ExplorerTabs from "@/features/explorer/components/ExplorerTabs";
 import SavedQueriesList from "@/features/explorer/components/SavedQueriesList";
+import { TreeExpansionContext } from "@/features/explorer/context/TreeExpansionContext";
+import { collectParentPaths } from "@/features/explorer/utils/collectTreePaths";
 
 const DatabaseExplorer: React.FC = () => {
   const {
@@ -47,6 +51,9 @@ const DatabaseExplorer: React.FC = () => {
   );
 
   const [savedQueriesList, setSavedQueriesList] = useState<SavedQuery[]>([]);
+
+  // Tree expansion state - default to all expanded
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
 
   const filteredDatabases = useMemo(() => {
     if (!selectedDatabase) return dataBaseExplorer;
@@ -145,6 +152,40 @@ const DatabaseExplorer: React.FC = () => {
       };
     });
   }, [filteredDatabases, selectedDatabase]);
+
+  // Re-expand all nodes when data changes
+  useEffect(() => {
+    const allPaths = collectParentPaths(organizedDatabases);
+    setExpandedPaths(new Set(allPaths));
+  }, [organizedDatabases]);
+
+  // Context value for tree expansion
+  const expansionContextValue = useMemo(
+    () => ({
+      isExpanded: (path: string) => expandedPaths.has(path),
+      toggleExpanded: (path: string) => {
+        setExpandedPaths((prev) => {
+          const next = new Set(prev);
+          if (next.has(path)) {
+            next.delete(path);
+          } else {
+            next.add(path);
+          }
+          return next;
+        });
+      },
+    }),
+    [expandedPaths]
+  );
+
+  const handleExpandAll = useCallback(() => {
+    const allPaths = collectParentPaths(organizedDatabases);
+    setExpandedPaths(new Set(allPaths));
+  }, [organizedDatabases]);
+
+  const handleCollapseAll = useCallback(() => {
+    setExpandedPaths(new Set());
+  }, []);
 
   const refreshDatabases = useCallback(() => {
     if (!clickHouseClient) {
@@ -263,42 +304,71 @@ const DatabaseExplorer: React.FC = () => {
       <div className="flex-1 min-h-0">
         <ExplorerTabs
           mainContent={
-            <ScrollArea className="h-full">
-              <div className="p-3">
-                {isLoadingDatabase ? (
-                  <div className="p-4 text-muted-foreground w-full flex flex-col items-center justify-center">
-                    <RefreshCcw className="w-8 h-8 mx-auto animate-spin" />
-                    <p className="text-center mt-2">Loading...</p>
-                  </div>
-                ) : tabError ? (
-                  <div className="p-4 text-red-500 w-full flex flex-col items-center justify-center">
-                    <p className="text-center mt-2">{tabError}</p>
+            <TreeExpansionContext.Provider value={expansionContextValue}>
+              <div className="flex flex-col h-full">
+                {/* Expand/Collapse buttons - only show when data is loaded */}
+                {!isLoadingDatabase && !tabError && organizedDatabases.length > 0 && (
+                  <div className="flex-none px-3 pt-2 pb-1 flex justify-end gap-1">
                     <Button
-                      onClick={refreshDatabases}
-                      variant="outline"
-                      className="mt-4"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleExpandAll}
+                      className="h-7 px-2 text-xs"
                     >
-                      Retry
+                      <ChevronsDownUp className="w-3 h-3 mr-1" />
+                      Expand All
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCollapseAll}
+                      className="h-7 px-2 text-xs"
+                    >
+                      <ChevronsUpDown className="w-3 h-3 mr-1" />
+                      Collapse All
                     </Button>
                   </div>
-                ) : organizedDatabases.length > 0 ? (
-                  organizedDatabases.map((node) => (
-                    <TreeNode
-                      node={node as TreeNodeData}
-                      level={0}
-                      parentDatabaseName={selectedDatabase || node.name}
-                      refreshData={refreshDatabases}
-                      key={node.name}
-                    />
-                  ))
-                ) : (
-                  <div className="p-4 text-muted-foreground w-full flex flex-col items-center justify-center">
-                    <SearchX className="w-8 h-8 mx-auto" />
-                    <p className="text-center mt-2">No databases found</p>
-                  </div>
                 )}
+
+                <ScrollArea className="flex-1">
+                  <div className="p-3">
+                    {isLoadingDatabase ? (
+                      <div className="p-4 text-muted-foreground w-full flex flex-col items-center justify-center">
+                        <RefreshCcw className="w-8 h-8 mx-auto animate-spin" />
+                        <p className="text-center mt-2">Loading...</p>
+                      </div>
+                    ) : tabError ? (
+                      <div className="p-4 text-red-500 w-full flex flex-col items-center justify-center">
+                        <p className="text-center mt-2">{tabError}</p>
+                        <Button
+                          onClick={refreshDatabases}
+                          variant="outline"
+                          className="mt-4"
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    ) : organizedDatabases.length > 0 ? (
+                      organizedDatabases.map((node) => (
+                        <TreeNode
+                          node={node as TreeNodeData}
+                          nodePath={node.name}
+                          level={0}
+                          parentDatabaseName={selectedDatabase || node.name}
+                          refreshData={refreshDatabases}
+                          key={node.name}
+                        />
+                      ))
+                    ) : (
+                      <div className="p-4 text-muted-foreground w-full flex flex-col items-center justify-center">
+                        <SearchX className="w-8 h-8 mx-auto" />
+                        <p className="text-center mt-2">No databases found</p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
               </div>
-            </ScrollArea>
+            </TreeExpansionContext.Provider>
           }
           queriesContent={
             <SavedQueriesList

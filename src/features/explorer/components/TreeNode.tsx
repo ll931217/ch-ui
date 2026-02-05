@@ -31,6 +31,7 @@ import {
 import ConfirmationDialog from "@/components/common/ConfirmationDialog";
 import { toast } from "sonner";
 import useAppStore from "@/store";
+import { useTreeExpansion } from "@/features/explorer/context/TreeExpansionContext";
 
 export interface TreeNodeData {
   name: string;
@@ -41,6 +42,7 @@ export interface TreeNodeData {
 
 interface TreeNodeProps {
   node: TreeNodeData;
+  nodePath: string;
   level: number;
   parentDatabaseName?: string;
   refreshData: () => void;
@@ -48,11 +50,14 @@ interface TreeNodeProps {
 
 const TreeNode: React.FC<TreeNodeProps> = ({
   node,
+  nodePath,
   level,
   parentDatabaseName,
   refreshData,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const { isExpanded, toggleExpanded } = useTreeExpansion();
+  const isOpen = isExpanded(nodePath);
+
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<() => Promise<void>>(
     () => async () => {}
@@ -70,8 +75,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 
   const toggleOpen = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsOpen((prev) => !prev);
-  }, []);
+    toggleExpanded(nodePath);
+  }, [nodePath, toggleExpanded]);
 
   const openInfoTab = (database: string, table: string) => {
     const title = `${database}${table ? `.${table}` : ""}`;
@@ -412,6 +417,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
                 <TreeNode
                   key={index}
                   node={child}
+                  nodePath={`${nodePath}/${child.name}`}
                   level={level + 1}
                   parentDatabaseName={
                     node.type === "database" ? node.name : parentDatabaseName

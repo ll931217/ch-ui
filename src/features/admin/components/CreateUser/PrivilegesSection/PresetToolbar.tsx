@@ -191,10 +191,10 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
           }
           inputValue={inputValue}
           onInputChange={(value) => {
-            // Don't clear input if we have a selected preset and value is empty
-            // This happens when Combobox tries to clear on selection
+            // If Combobox is trying to clear but we have a selected preset, restore the preset name
             if (!value && selectedPresetId && selectedPreset) {
-              return; // Keep current inputValue
+              setInputValue(selectedPreset.name);
+              return;
             }
             setInputValue(value);
           }}

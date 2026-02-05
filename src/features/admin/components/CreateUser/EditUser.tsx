@@ -107,7 +107,7 @@ const EditUser: React.FC<EditUserProps> = ({
         },
       });
     }
-  }, [userInfo, grants, form]);
+  }, [userInfo, grants]);
 
   const onSubmit = async (data: any) => {
     if (!username) return;

@@ -8,6 +8,7 @@ import {
   ComboboxList,
   ComboboxItem,
   ComboboxEmpty,
+  ComboboxCollection,
 } from "@/components/ui/combobox";
 import {
   AlertDialog,
@@ -169,6 +170,12 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
             handleSelectPreset(value.length > 0 ? value[0] : null)
           }
         >
+          <ComboboxCollection
+            items={presets.map((preset) => ({
+              label: preset.name,
+              value: preset.id,
+            }))}
+          />
           <ComboboxInput
             placeholder="Search presets..."
             showTrigger

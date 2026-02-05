@@ -8,7 +8,6 @@ import {
   ComboboxList,
   ComboboxItem,
   ComboboxEmpty,
-  ComboboxCollection,
 } from "@/components/ui/combobox";
 import {
   AlertDialog,
@@ -45,6 +44,7 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
     usePresetStore();
 
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,9 +63,12 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
     if (presetId) {
       const preset = presets.find((p) => p.id === presetId);
       if (preset) {
+        setInputValue(preset.name);
         onApplyPreset(preset.grants);
         toast.success(`Loaded preset: ${preset.name}`);
       }
+    } else {
+      setInputValue("");
     }
   };
 
@@ -169,13 +172,9 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
           onValueChange={(value) =>
             handleSelectPreset(value.length > 0 ? value[0] : null)
           }
+          inputValue={inputValue}
+          onInputChange={(value) => setInputValue(value)}
         >
-          <ComboboxCollection
-            items={presets.map((preset) => ({
-              label: preset.name,
-              value: preset.id,
-            }))}
-          />
           <ComboboxInput
             placeholder="Search presets..."
             showTrigger
@@ -185,16 +184,20 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
           <ComboboxContent>
             <ComboboxList>
               <ComboboxEmpty>No presets found</ComboboxEmpty>
-              {presets.map((preset) => (
-                <ComboboxItem key={preset.id} value={preset.id}>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{preset.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {preset.grants.length} privilege(s)
-                    </span>
-                  </div>
-                </ComboboxItem>
-              ))}
+              {presets
+                .filter((preset) =>
+                  preset.name.toLowerCase().includes(inputValue.toLowerCase())
+                )
+                .map((preset) => (
+                  <ComboboxItem key={preset.id} value={preset.id}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{preset.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {preset.grants.length} privilege(s)
+                      </span>
+                    </div>
+                  </ComboboxItem>
+                ))}
             </ComboboxList>
           </ComboboxContent>
         </Combobox>

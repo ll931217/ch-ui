@@ -29,7 +29,7 @@ interface UsersTableProps {
   setSelectedUser: (username: string | null) => void;
   setShowDeleteDialog: (show: boolean) => void;
   setShowResetPasswordDialog: (show: boolean) => void;
-  setShowEditDialog: (show: boolean) => void;
+  setShowEditDialog: (username: string) => void;
 }
 
 const UsersTable: React.FC<UsersTableProps> = ({
@@ -153,8 +153,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                       size="icon"
                       className="h-8 w-8 text-muted-foreground hover:text-primary"
                       onClick={() => {
-                        setSelectedUser(user.name);
-                        setShowEditDialog(true);
+                        setShowEditDialog(user.name);
                       }}
                     >
                       <Edit className="h-4 w-4" />

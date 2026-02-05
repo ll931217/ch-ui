@@ -237,11 +237,9 @@ const UserTable: React.FC = () => {
                 setSelectedUser={setSelectedUser}
                 setShowDeleteDialog={setShowDeleteDialog}
                 setShowResetPasswordDialog={setShowResetPasswordDialog}
-                setShowEditDialog={(show: boolean) => {
-                  if (show && selectedUser) {
-                    setViewState({ mode: "edit", username: selectedUser });
-                  }
-                }}
+                setShowEditDialog={(username: string) =>
+                  setViewState({ mode: "edit", username })
+                }
               />
             </CardContent>
 

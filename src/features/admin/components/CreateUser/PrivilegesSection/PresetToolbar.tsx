@@ -1,6 +1,6 @@
 // Toolbar for managing privilege presets
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Select,
   SelectContent,
@@ -26,6 +26,7 @@ import { usePresetStore, exportPresets } from "./usePresetStore";
 import { GrantedPermission } from "./permissions";
 import { PresetExportData } from "./presetTypes";
 import CreatePresetDialog from "./CreatePresetDialog";
+import { grantsMatch } from "./grantUtils";
 
 interface PresetToolbarProps {
   grants: GrantedPermission[];
@@ -61,6 +62,20 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
       ensureDefaultPresets(activeConnectionId);
     }
   }, [activeConnectionId, ensureDefaultPresets]);
+
+  // Auto-detect matching preset when grants change
+  useEffect(() => {
+    if (!grants || grants.length === 0) {
+      setSelectedPresetId("");
+      return;
+    }
+
+    const matchingPreset = presets.find((preset) =>
+      grantsMatch(preset.grants, grants)
+    );
+
+    setSelectedPresetId(matchingPreset?.id || "");
+  }, [grants, presets]);
 
   // Handlers
   const handleSelectPreset = (presetId: string) => {
@@ -173,7 +188,13 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
       <div className="flex-1 max-w-md flex items-center gap-2">
         <Select value={selectedPresetId} onValueChange={handleSelectPreset}>
           <SelectTrigger className="flex-1">
-            <SelectValue placeholder="Select a preset..." />
+            <SelectValue
+              placeholder={
+                grants.length > 0
+                  ? "Custom (no preset match)"
+                  : "Select a preset..."
+              }
+            />
           </SelectTrigger>
           <SelectContent>
             {presets.map((preset) => (

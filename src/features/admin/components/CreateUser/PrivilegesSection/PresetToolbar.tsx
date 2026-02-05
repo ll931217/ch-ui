@@ -1,14 +1,13 @@
 // Toolbar for managing privilege presets
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
-  Combobox,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxList,
-  ComboboxItem,
-  ComboboxEmpty,
-} from "@/components/ui/combobox";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Save, Plus, Trash2, Download, Upload } from "lucide-react";
+import { Save, Plus, Trash2, Download, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { useConnectionStore } from "@/store/connectionStore";
 import { usePresetStore, exportPresets } from "./usePresetStore";
@@ -43,8 +42,7 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
   const { getPresets, ensureDefaultPresets, addPreset, updatePreset, deletePreset, importPresets } =
     usePresetStore();
 
-  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
-  const [inputValue, setInputValue] = useState("");
+  const [selectedPresetId, setSelectedPresetId] = useState<string>("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,40 +56,29 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
   const selectedPreset = presets.find((p) => p.id === selectedPresetId);
 
   // Ensure default presets exist for this connection
-  useEffect(() => {
+  React.useEffect(() => {
     if (activeConnectionId) {
       ensureDefaultPresets(activeConnectionId);
     }
   }, [activeConnectionId, ensureDefaultPresets]);
 
-  // Sync input value with selected preset
-  useEffect(() => {
-    if (selectedPreset) {
-      setInputValue(selectedPreset.name);
-    } else {
-      setInputValue("");
-    }
-  }, [selectedPreset]);
-
   // Handlers
-  const handleSelectPreset = (presetId: string | null) => {
+  const handleSelectPreset = (presetId: string) => {
     setSelectedPresetId(presetId);
-    if (presetId) {
-      const preset = presets.find((p) => p.id === presetId);
-      if (preset) {
-        setInputValue(preset.name);
-        onApplyPreset(preset.grants);
-        toast.success(`Loaded preset: ${preset.name}`);
-      }
-    } else {
-      setInputValue("");
+    const preset = presets.find((p) => p.id === presetId);
+    if (preset) {
+      onApplyPreset(preset.grants);
+      toast.success(`Loaded preset: ${preset.name}`);
     }
+  };
+
+  const handleClearPreset = () => {
+    setSelectedPresetId("");
   };
 
   const handleCreatePreset = (name: string) => {
     const newPreset = addPreset(activeConnectionId, name, grants);
     setSelectedPresetId(newPreset.id);
-    setInputValue(newPreset.name);
     toast.success(`Created preset: ${name}`);
   };
 
@@ -107,7 +94,7 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
 
     const presetName = selectedPreset.name;
     deletePreset(activeConnectionId, selectedPreset.id);
-    setSelectedPresetId(null);
+    setSelectedPresetId("");
     setDeleteDialogOpen(false);
     toast.success(`Deleted preset: ${presetName}`);
   };
@@ -183,59 +170,36 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
   return (
     <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/30">
       {/* Preset Selector */}
-      <div className="flex-1 max-w-md">
-        <Combobox
-          value={selectedPresetId ? [selectedPresetId] : []}
-          onValueChange={(value) =>
-            handleSelectPreset(value.length > 0 ? value[0] : null)
-          }
-          inputValue={inputValue}
-          onInputChange={(value) => {
-            // If Combobox is trying to clear but we have a selected preset, restore the preset name
-            if (!value && selectedPresetId && selectedPreset) {
-              setInputValue(selectedPreset.name);
-              return;
-            }
-            setInputValue(value);
-          }}
-        >
-          <ComboboxInput
-            placeholder="Search presets..."
-            showTrigger
-            showClear={!!selectedPresetId}
-            className="focus-within:ring-0 focus-within:ring-offset-0 focus-within:border-input"
-          />
-          <ComboboxContent>
-            <ComboboxList>
-              <ComboboxEmpty>No presets found</ComboboxEmpty>
-              {presets
-                .filter((preset) =>
-                  preset.name.toLowerCase().includes(inputValue.toLowerCase())
-                )
-                .map((preset) => {
-                  const isSelected = preset.id === selectedPresetId;
-                  return (
-                    <ComboboxItem
-                      key={preset.id}
-                      value={preset.id}
-                      className={
-                        isSelected
-                          ? "bg-accent/50 data-highlighted:bg-accent"
-                          : ""
-                      }
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-medium">{preset.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {preset.grants.length} privilege(s)
-                        </span>
-                      </div>
-                    </ComboboxItem>
-                  );
-                })}
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
+      <div className="flex-1 max-w-md flex items-center gap-2">
+        <Select value={selectedPresetId} onValueChange={handleSelectPreset}>
+          <SelectTrigger className="flex-1">
+            <SelectValue placeholder="Select a preset..." />
+          </SelectTrigger>
+          <SelectContent>
+            {presets.map((preset) => (
+              <SelectItem key={preset.id} value={preset.id}>
+                <div className="flex flex-col">
+                  <span className="font-medium">{preset.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {preset.grants.length} privilege(s)
+                  </span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {selectedPresetId && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleClearPreset}
+            title="Clear selection"
+            className="cursor-pointer text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Action Buttons */}

@@ -214,6 +214,10 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
             theme={gridTheme}
             rowHeight={32}
             suppressMovableColumns={false}
+            pagination={true}
+            paginationPageSize={100}
+            enableCellTextSelection={true}
+            animateRows={false}
             {...gridOptions}
           />
         </div>

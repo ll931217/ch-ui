@@ -247,8 +247,7 @@ const EditUser: React.FC<EditUserProps> = ({
         newState: { ...data },
       });
 
-      toast.info(`Changes for user ${username} staged for review`);
-      onBack();
+      toast.success(`Changes for user ${username} staged for review`);
     } catch (err: any) {
       setError(err.message || "Failed to stage user update");
     } finally {

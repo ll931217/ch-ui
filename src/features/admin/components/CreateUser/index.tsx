@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form } from "@/components/ui/form";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -216,12 +217,12 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onBack, onUserCreated }) 
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-6">
+    <div className="w-full max-w-7xl mx-auto px-3 pb-8">
       {/* Back Button */}
       <Button
         variant="ghost"
         onClick={onBack}
-        className="mb-6 gap-2"
+        className="mb-2 gap-2"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Users & Roles
@@ -229,82 +230,92 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onBack, onUserCreated }) 
 
       {/* Title */}
       <h1 className="text-3xl font-medium mb-2">Create New ClickHouse User</h1>
-      <p className="text-gray-400 mb-6">
+      <p className="text-gray-400 mb-4">
         Configure authentication, permissions, and settings for the new user.
       </p>
 
       {/* Form Container */}
-      <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-6"
-          >
-            {/* Authentication Section */}
-            <AuthenticationSection
-              form={form}
-              handleGeneratePassword={handleGeneratePassword}
-            />
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <Tabs defaultValue="general" className="w-full">
+            <TabsList>
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="privileges">Privileges</TabsTrigger>
+            </TabsList>
 
-            {/* ON CLUSTER Settings */}
-            <div className="space-y-4 border rounded-lg p-4">
-              <h3 className="text-lg font-semibold">Cluster Settings</h3>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="onCluster"
-                  checked={onCluster}
-                  onCheckedChange={(checked) => setOnCluster(!!checked)}
+            <TabsContent value="general" forceMount className="data-[state=inactive]:hidden">
+              <div className="grid grid-cols-2 gap-6">
+                {/* Authentication Section */}
+                <AuthenticationSection
+                  form={form}
+                  handleGeneratePassword={handleGeneratePassword}
                 />
-                <Label htmlFor="onCluster">Create user on cluster</Label>
-              </div>
-              
-              {onCluster && (
-                <div className="space-y-2">
-                  <Label htmlFor="clusterName">Cluster Name</Label>
-                  <Input
-                    id="clusterName"
-                    value={clusterName}
-                    onChange={(e) => setClusterName(e.target.value)}
-                    placeholder="Enter cluster name"
+
+                {/* Access Control Section */}
+                <AccessControlSection form={form} />
+
+                {/* Left column: Database & Roles + Cluster Settings */}
+                <div className="space-y-6">
+                  {/* Database and Roles Section */}
+                  <DatabaseRolesSection
+                    form={form}
+                    roles={metadata.roles}
+                    databases={metadata.databases}
                   />
+
+                  {/* ON CLUSTER Settings */}
+                  <div className="space-y-4 border rounded-lg p-4">
+                    <h3 className="text-lg font-semibold">Cluster Settings</h3>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="onCluster"
+                        checked={onCluster}
+                        onCheckedChange={(checked) => setOnCluster(!!checked)}
+                      />
+                      <Label htmlFor="onCluster">Create user on cluster</Label>
+                    </div>
+
+                    {onCluster && (
+                      <div className="space-y-2">
+                        <Label htmlFor="clusterName">Cluster Name</Label>
+                        <Input
+                          id="clusterName"
+                          value={clusterName}
+                          onChange={(e) => setClusterName(e.target.value)}
+                          placeholder="Enter cluster name"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {/* Access Control Section */}
-            <AccessControlSection form={form} />
+                {/* Settings Section */}
+                <SettingsSection form={form} profiles={metadata.profiles} />
+              </div>
+            </TabsContent>
 
-            {/* Database and Roles Section */}
-            <DatabaseRolesSection
-              form={form}
-              roles={metadata.roles}
-              databases={metadata.databases}
-            />
+            <TabsContent value="privileges" forceMount className="data-[state=inactive]:hidden">
+              <PrivilegesSection
+                form={form}
+                databases={metadata.databases}
+                tables={metadata.tables}
+              />
+            </TabsContent>
+          </Tabs>
 
-            {/* Privileges Section */}
-            <PrivilegesSection
-              form={form}
-              databases={metadata.databases}
-              tables={metadata.tables}
-            />
+          {/* Error Alert */}
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-            {/* Settings Section */}
-            <SettingsSection form={form} profiles={metadata.profiles} />
-
-            {/* Error Alert */}
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Submit Button */}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating..." : "Create User"}
-            </Button>
-          </form>
-        </Form>
-      </div>
+          {/* Submit Button */}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Creating..." : "Create User"}
+          </Button>
+        </form>
+      </Form>
     </div>
   );
 };

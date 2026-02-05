@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form } from "@/components/ui/form";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import useAppStore from "@/store";
@@ -62,7 +63,8 @@ const EditUser: React.FC<EditUserProps> = ({
   const { runQuery } = useAppStore();
   const { userInfo, loading: userLoading } = useUserData({ username });
   const { grants, loading: grantsLoading } = useGrants({ userName: username });
-  const { generateAlterUser, generateGrant, generateRevoke } = useSqlGenerator();
+  const { generateAlterUser, generateGrant, generateRevoke } =
+    useSqlGenerator();
 
   // Populate form when user data is loaded
   useEffect(() => {
@@ -121,7 +123,7 @@ const EditUser: React.FC<EditUserProps> = ({
       // 1. Handle password change (only if provided)
       if (data.password) {
         statements.push(
-          ...generateAlterUser(username, { password: data.password })
+          ...generateAlterUser(username, { password: data.password }),
         );
       }
 
@@ -130,13 +132,20 @@ const EditUser: React.FC<EditUserProps> = ({
         const currentHostType = getHostType(userInfo);
         const currentHostValue = getHostValue(userInfo);
 
-        if (data.hostType !== currentHostType || data.hostValue !== currentHostValue) {
+        if (
+          data.hostType !== currentHostType ||
+          data.hostValue !== currentHostValue
+        ) {
           const hostChanges: any = {};
 
           if (data.hostType === "IP" && data.hostValue) {
-            hostChanges.hostIp = data.hostValue.split(",").map((ip: string) => ip.trim());
+            hostChanges.hostIp = data.hostValue
+              .split(",")
+              .map((ip: string) => ip.trim());
           } else if (data.hostType === "NAME" && data.hostValue) {
-            hostChanges.hostNames = data.hostValue.split(",").map((name: string) => name.trim());
+            hostChanges.hostNames = data.hostValue
+              .split(",")
+              .map((name: string) => name.trim());
           }
 
           statements.push(...generateAlterUser(username, hostChanges));
@@ -146,18 +155,24 @@ const EditUser: React.FC<EditUserProps> = ({
       // 3. Handle default database change
       if (data.defaultDatabase !== userInfo?.default_database) {
         statements.push(
-          ...generateAlterUser(username, { defaultDatabase: data.defaultDatabase })
+          ...generateAlterUser(username, {
+            defaultDatabase: data.defaultDatabase,
+          }),
         );
       }
 
       // 4. Handle settings changes
       if (data.settings.profile !== userInfo?.settings?.profile) {
-        statements.push(`ALTER USER ${username} SETTINGS PROFILE '${data.settings.profile}'`);
+        statements.push(
+          `ALTER USER ${username} SETTINGS PROFILE '${data.settings.profile}'`,
+        );
       }
 
       if (data.settings.readonly !== userInfo?.settings?.readonly) {
         const readonlyValue = data.settings.readonly ? 1 : 0;
-        statements.push(`ALTER USER ${username} SETTINGS READONLY=${readonlyValue}`);
+        statements.push(
+          `ALTER USER ${username} SETTINGS READONLY=${readonlyValue}`,
+        );
       }
 
       // 5. Handle grantees change
@@ -172,10 +187,16 @@ const EditUser: React.FC<EditUserProps> = ({
 
       // Create maps for quick lookup
       const originalGrantsMap = new Map(
-        originalGrants.map(g => [`${g.permissionId}:${JSON.stringify(g.scope)}`, g])
+        originalGrants.map((g) => [
+          `${g.permissionId}:${JSON.stringify(g.scope)}`,
+          g,
+        ]),
       );
       const newGrantsMap = new Map(
-        newGrants.map(g => [`${g.permissionId}:${JSON.stringify(g.scope)}`, g])
+        newGrants.map((g) => [
+          `${g.permissionId}:${JSON.stringify(g.scope)}`,
+          g,
+        ]),
       );
 
       // Find revoked permissions (in original but not in new)
@@ -189,7 +210,7 @@ const EditUser: React.FC<EditUserProps> = ({
       }
 
       // Find new permissions (in new but not in original)
-      const grantedIds = new Set(newGrants.map(g => g.permissionId));
+      const grantedIds = new Set(newGrants.map((g) => g.permissionId));
       for (const [key, grant] of newGrantsMap) {
         if (!originalGrantsMap.has(key)) {
           const permission = findPermissionById(grant.permissionId);
@@ -229,9 +250,10 @@ const EditUser: React.FC<EditUserProps> = ({
   };
 
   const handleGeneratePassword = () => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
     const newPassword = Array.from({ length: 16 }, () =>
-      chars.charAt(Math.floor(Math.random() * chars.length))
+      chars.charAt(Math.floor(Math.random() * chars.length)),
     ).join("");
     form.setValue("password", newPassword);
   };
@@ -247,20 +269,22 @@ const EditUser: React.FC<EditUserProps> = ({
   const getHostValue = (userInfo: any) => {
     if (userInfo.host_ip?.length > 0) return userInfo.host_ip.join(", ");
     if (userInfo.host_names?.length > 0) return userInfo.host_names.join(", ");
-    if (userInfo.host_names_regexp?.length > 0) return userInfo.host_names_regexp.join(", ");
-    if (userInfo.host_names_like?.length > 0) return userInfo.host_names_like.join(", ");
+    if (userInfo.host_names_regexp?.length > 0)
+      return userInfo.host_names_regexp.join(", ");
+    if (userInfo.host_names_like?.length > 0)
+      return userInfo.host_names_like.join(", ");
     return "";
   };
 
   const isLoading = userLoading || grantsLoading;
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-6">
+    <div className="w-full max-w-7xl mx-auto px-3 pb-8">
       {/* Back Button */}
       <Button
         variant="ghost"
         onClick={onBack}
-        className="mb-6 gap-2"
+        className="mb-2 gap-2 cursor-pointer hover:accent-accent-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Users & Roles
@@ -268,66 +292,77 @@ const EditUser: React.FC<EditUserProps> = ({
 
       {/* Title */}
       <h1 className="text-3xl font-medium mb-2">Edit User: {username}</h1>
-      <p className="text-gray-400 mb-6">
+      <p className="text-gray-400 mb-4">
         Modify authentication, permissions, and settings for this user.
       </p>
 
       {/* Form Container */}
-      <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
-        {isLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-        ) : (
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-6"
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      ) : (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <Tabs defaultValue="general" className="w-full">
+              <TabsList>
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="privileges">Privileges</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="general" forceMount className="data-[state=inactive]:hidden">
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Authentication Section - with edit mode */}
+                  <AuthenticationSection
+                    form={form}
+                    handleGeneratePassword={handleGeneratePassword}
+                    isEditMode={true}
+                  />
+
+                  {/* Access Control Section */}
+                  <AccessControlSection form={form} />
+
+                  {/* Database and Roles Section */}
+                  <DatabaseRolesSection
+                    form={form}
+                    roles={metadata.roles}
+                    databases={metadata.databases}
+                  />
+
+                  {/* Settings Section */}
+                  <SettingsSection form={form} profiles={metadata.profiles} />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="privileges" forceMount className="data-[state=inactive]:hidden">
+                <PrivilegesSection
+                  form={form}
+                  databases={metadata.databases}
+                  tables={metadata.tables}
+                />
+              </TabsContent>
+            </Tabs>
+
+            {/* Error Alert */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading}
             >
-              {/* Authentication Section - with edit mode */}
-              <AuthenticationSection
-                form={form}
-                handleGeneratePassword={handleGeneratePassword}
-                isEditMode={true}
-              />
-
-              {/* Access Control Section */}
-              <AccessControlSection form={form} />
-
-              {/* Database and Roles Section */}
-              <DatabaseRolesSection
-                form={form}
-                roles={metadata.roles}
-                databases={metadata.databases}
-              />
-
-              {/* Privileges Section */}
-              <PrivilegesSection
-                form={form}
-                databases={metadata.databases}
-                tables={metadata.tables}
-              />
-
-              {/* Settings Section */}
-              <SettingsSection form={form} profiles={metadata.profiles} />
-
-              {/* Error Alert */}
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              {/* Submit Button */}
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Updating..." : "Update User"}
-              </Button>
-            </form>
-          </Form>
-        )}
-      </div>
+              {loading ? "Updating..." : "Update User"}
+            </Button>
+          </form>
+        </Form>
+      )}
     </div>
   );
 };

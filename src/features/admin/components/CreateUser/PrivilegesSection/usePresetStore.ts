@@ -67,30 +67,38 @@ export const usePresetStore = create<PresetState>()(
       },
 
       ensureDefaultPresets: (connectionId) => {
-        const existing = get().presetsByConnection[connectionId];
+        const existing = get().presetsByConnection[connectionId] || [];
 
-        // Only create defaults if connection has no presets
-        if (!existing || existing.length === 0) {
-          const now = new Date().toISOString();
+        // Check if default presets already exist by name
+        const hasAdminPreset = existing.some(p => p.name === "Full Admin (All Privileges)");
+        const hasReadOnlyPreset = existing.some(p => p.name === "Read-Only Access");
 
-          const adminPreset: PrivilegePreset = {
+        const presetsToAdd: PrivilegePreset[] = [];
+        const now = new Date().toISOString();
+
+        if (!hasAdminPreset) {
+          presetsToAdd.push({
             ...createAdminPreset(),
             id: crypto.randomUUID(),
             createdAt: now,
             updatedAt: now,
-          };
+          });
+        }
 
-          const readOnlyPreset: PrivilegePreset = {
+        if (!hasReadOnlyPreset) {
+          presetsToAdd.push({
             ...createReadOnlyPreset(),
             id: crypto.randomUUID(),
             createdAt: now,
             updatedAt: now,
-          };
+          });
+        }
 
+        if (presetsToAdd.length > 0) {
           set((state) => ({
             presetsByConnection: {
               ...state.presetsByConnection,
-              [connectionId]: [adminPreset, readOnlyPreset],
+              [connectionId]: [...existing, ...presetsToAdd],
             },
           }));
         }

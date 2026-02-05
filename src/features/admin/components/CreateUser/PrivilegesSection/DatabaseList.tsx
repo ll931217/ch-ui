@@ -15,7 +15,7 @@ const DatabaseList: React.FC<DatabaseListProps> = ({
   onSelectDatabase,
 }) => {
   return (
-    <div className="flex flex-col h-full border-r">
+    <div className="flex flex-col h-full min-h-0 border-r">
       <div className="px-4 py-3 border-b bg-muted/50">
         <h3 className="font-semibold text-sm">Databases</h3>
       </div>

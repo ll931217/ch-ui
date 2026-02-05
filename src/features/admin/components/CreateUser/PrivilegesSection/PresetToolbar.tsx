@@ -1,6 +1,6 @@
 // Toolbar for managing privilege presets
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Combobox,
   ComboboxInput,
@@ -57,6 +57,15 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
   const presets = getPresets(activeConnectionId);
   const selectedPreset = presets.find((p) => p.id === selectedPresetId);
 
+  // Sync input value with selected preset
+  useEffect(() => {
+    if (selectedPreset) {
+      setInputValue(selectedPreset.name);
+    } else {
+      setInputValue("");
+    }
+  }, [selectedPreset]);
+
   // Handlers
   const handleSelectPreset = (presetId: string | null) => {
     setSelectedPresetId(presetId);
@@ -75,6 +84,7 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
   const handleCreatePreset = (name: string) => {
     const newPreset = addPreset(activeConnectionId, name, grants);
     setSelectedPresetId(newPreset.id);
+    setInputValue(newPreset.name);
     toast.success(`Created preset: ${name}`);
   };
 
@@ -173,7 +183,14 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
             handleSelectPreset(value.length > 0 ? value[0] : null)
           }
           inputValue={inputValue}
-          onInputChange={(value) => setInputValue(value)}
+          onInputChange={(value) => {
+            // Don't clear input if we have a selected preset and value is empty
+            // This happens when Combobox tries to clear on selection
+            if (!value && selectedPresetId && selectedPreset) {
+              return; // Keep current inputValue
+            }
+            setInputValue(value);
+          }}
         >
           <ComboboxInput
             placeholder="Search presets..."

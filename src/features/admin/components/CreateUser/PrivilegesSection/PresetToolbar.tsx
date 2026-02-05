@@ -173,6 +173,7 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
             placeholder="Search presets..."
             showTrigger
             showClear={!!selectedPresetId}
+            className="focus-within:ring-0 focus-within:ring-offset-0 focus-within:border-input"
           />
           <ComboboxContent>
             <ComboboxList>

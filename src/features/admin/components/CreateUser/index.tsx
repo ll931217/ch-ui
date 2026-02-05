@@ -167,7 +167,7 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onBack, onUserCreated }) 
     if (data.privileges.isAdmin) {
       // Use CURRENT GRANTS to only grant privileges the current user has
       // This avoids permission errors when the current user doesn't have ALL privileges
-      queries.push(`GRANT CURRENT GRANTS() ON *.* TO ${username} WITH GRANT OPTION`);
+      queries.push(`GRANT CURRENT GRANTS ON *.* TO ${username} WITH GRANT OPTION`);
       return queries;
     }
 

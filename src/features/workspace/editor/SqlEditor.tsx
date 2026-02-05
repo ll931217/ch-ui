@@ -63,6 +63,9 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const isDisposedRef = useRef(false);
   const highlightTimeoutRef = useRef<number>();
   const usageTrackerRef = useRef<AutocompleteUsageTracker | null>(null);
+  const handleRunQueryRef = useRef<() => void>(() => {});
+  const handleRunAllQueriesRef = useRef<() => void>(() => {});
+  const handleSaveOpenDialogRef = useRef<() => void>(() => {});
   const tab = getTabById(tabId);
   const { theme } = useTheme();
   const { editorFontSize, editorFontFamily, editorVimMode } = useAppearance();
@@ -176,6 +179,9 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     }
   }, [getAllQueries, onRunQuery, onRunAllQueries]);
 
+  useEffect(() => { handleRunQueryRef.current = handleRunQuery; }, [handleRunQuery]);
+  useEffect(() => { handleRunAllQueriesRef.current = handleRunAllQueries; }, [handleRunAllQueries]);
+
   const hanldeSaveOpenDialog = async () => {
     if (tab?.title) {
       setQueryName(tab.title);
@@ -222,6 +228,8 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
     setIsSaveDialogOpen(true);
   };
 
+  useEffect(() => { handleSaveOpenDialogRef.current = hanldeSaveOpenDialog; });
+
   useEffect(() => {
     initializeMonacoGlobally();
     if (editorRef.current) {
@@ -261,19 +269,17 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
 
       editor.addCommand(
         monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
-        handleRunQuery
+        () => { handleRunQueryRef.current(); }
       );
 
       editor.addCommand(
         monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter,
-        handleRunAllQueries
+        () => { handleRunAllQueriesRef.current(); }
       );
 
       editor.addCommand(
         monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
-        () => {
-          hanldeSaveOpenDialog();
-        }
+        () => { handleSaveOpenDialogRef.current(); }
       );
 
       const styleId = `query-highlight-style-${tabId}`;
@@ -308,7 +314,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
         }
       };
     }
-  }, [tabId, updateTab, editorTheme, editorFontSize, editorFontFamily, editorVimMode]);
+  }, [tabId, updateTab, editorTheme, editorFontSize, editorFontFamily]);
 
   useEffect(() => {
     const styleId = `query-highlight-style-${tabId}`;
@@ -356,15 +362,15 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
         vimModeRef.current = initVimMode(monacoRef.current, statusBarRef.current);
 
         VimMode.Vim.defineEx('w', 'w', () => {
-          hanldeSaveOpenDialog();
+          handleSaveOpenDialogRef.current();
         });
 
         VimMode.Vim.defineEx('run', 'run', () => {
-          handleRunQuery();
+          handleRunQueryRef.current();
         });
-        
+
         VimMode.Vim.defineEx('runall', 'runall', () => {
-          handleRunAllQueries();
+          handleRunAllQueriesRef.current();
         });
 
         VimMode.Vim.defineOperator('surround', (cm, args, ranges) => {
@@ -413,7 +419,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
         }
       }
     }
-   }, [editorVimMode, handleRunQuery, handleRunAllQueries, hanldeSaveOpenDialog]);
+  }, [editorVimMode]);
 
   const handleConnectionChange = (connectionId: string) => {
     setSelectedConnectionId(connectionId);
@@ -473,7 +479,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const hasMultipleQueries = queryCount > 1;
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="px-4 flex items-center justify-between border-b">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground truncate max-w-[200px]">
@@ -533,7 +539,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
           </TooltipProvider>
         </div>
       </div>
-      <div ref={editorRef} className="flex-1" />
+      <div ref={editorRef} className="flex-1 min-h-0" />
       {editorVimMode && (
         <div
           ref={statusBarRef}

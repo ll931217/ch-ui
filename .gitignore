@@ -30,3 +30,6 @@ dist-ssr
 .clickhouse_local_data
 
 
+
+# bv (beads viewer) local config and caches
+.bv/

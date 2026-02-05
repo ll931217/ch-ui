@@ -188,16 +188,27 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
                 .filter((preset) =>
                   preset.name.toLowerCase().includes(inputValue.toLowerCase())
                 )
-                .map((preset) => (
-                  <ComboboxItem key={preset.id} value={preset.id}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{preset.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {preset.grants.length} privilege(s)
-                      </span>
-                    </div>
-                  </ComboboxItem>
-                ))}
+                .map((preset) => {
+                  const isSelected = preset.id === selectedPresetId;
+                  return (
+                    <ComboboxItem
+                      key={preset.id}
+                      value={preset.id}
+                      className={
+                        isSelected
+                          ? "bg-accent/50 data-highlighted:bg-accent"
+                          : ""
+                      }
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-medium">{preset.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {preset.grants.length} privilege(s)
+                        </span>
+                      </div>
+                    </ComboboxItem>
+                  );
+                })}
             </ComboboxList>
           </ComboboxContent>
         </Combobox>

@@ -66,16 +66,8 @@ const AuthenticationSection: React.FC<AuthenticationSectionProps> = ({
               // Skip validation if in edit mode and password is empty
               if (isEditMode && !value) return true;
 
-              if (value.length < 12) {
-                return "Password must be at least 12 characters";
-              }
-              if (
-                !/[a-z]/.test(value) ||
-                !/[A-Z]/.test(value) ||
-                !/\d/.test(value) ||
-                !/[!@#$%^&*]/.test(value)
-              ) {
-                return "Password must include uppercase, lowercase, numbers, and special characters";
+              if (value.length < 8) {
+                return "Password must be at least 8 characters";
               }
               return true;
             },

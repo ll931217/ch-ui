@@ -3,15 +3,13 @@ import { Button } from "@/components/ui/button";
 import UserTable from "@/features/admin/components/UserManagement/index";
 import { InfoIcon, ShieldCheck } from "lucide-react";
 import InfoDialog from "@/components/common/InfoDialog";
-import ClickhouseDefaultConfiguration from "@/features/admin/components/ClickhouseDefaultConfiguration";
-import PermissionsConfig from "@/features/admin/components/PermissionsConfig";
 import AuditLogViewer from "@/features/admin/components/PermissionsConfig/AuditLogViewer";
 import useAppStore from "@/store";
 
 export default function Admin() {
   const { userPrivileges } = useAppStore();
   const [isInfoOpen, setIsInfoOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("config");
+  const [activeSection, setActiveSection] = useState("users");
 
   // Check if user can view users/roles section
   const canViewUsersRoles = userPrivileges?.canShowUsers || userPrivileges?.canShowRoles;
@@ -36,15 +34,6 @@ export default function Admin() {
           {/* Sidebar */}
           <div className="w-64">
             <nav className="space-y-2">
-              <Button
-                variant="ghost"
-                className={`w-full justify-start ${
-                  activeSection === "config" ? "" : "text-gray-400"
-                } hover:bg-muted/50`}
-                onClick={() => setActiveSection("config")}
-              >
-                Configuration
-              </Button>
               {canViewUsersRoles && (
                 <Button
                   variant="ghost"
@@ -60,11 +49,11 @@ export default function Admin() {
                 <Button
                   variant="ghost"
                   className={`w-full justify-start ${
-                    activeSection === "permissions" ? "" : "text-gray-400"
+                    activeSection === "settings-profiles" ? "" : "text-gray-400"
                   } hover:bg-muted/50`}
-                  onClick={() => setActiveSection("permissions")}
+                  onClick={() => setActiveSection("settings-profiles")}
                 >
-                  Permissions Config
+                  Settings Profiles
                 </Button>
               )}
               {canViewUsersRoles && (
@@ -90,19 +79,16 @@ export default function Admin() {
                 </div>
               )}
 
-              {activeSection === "config" && (
+              {activeSection === "settings-profiles" && (
                 <div>
-                  <h2 className="text-2xl font-medium  mb-2">Configuration</h2>
+                  <h2 className="text-2xl font-medium mb-2">Settings Profiles</h2>
                   <p className="text-gray-400 mb-6">
-                    Manage ClickHouse configuration settings.
+                    Manage ClickHouse settings profiles for users and roles.
                   </p>
-                  <ClickhouseDefaultConfiguration />
-                </div>
-              )}
-
-              {activeSection === "permissions" && (
-                <div>
-                  <PermissionsConfig />
+                  {/* TODO: Implement Settings Profiles component in Phase 6 */}
+                  <div className="text-sm text-gray-500">
+                    Settings Profiles management will be implemented here.
+                  </div>
                 </div>
               )}
 

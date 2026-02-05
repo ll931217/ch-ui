@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form } from "@/components/ui/form";
 import { toast } from "sonner";
@@ -29,16 +24,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface EditUserProps {
-  username: string | null;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  username: string;
+  onBack: () => void;
   onUserUpdated: () => void;
 }
 
 const EditUser: React.FC<EditUserProps> = ({
   username,
-  isOpen,
-  onOpenChange,
+  onBack,
   onUserUpdated,
 }) => {
   const [error, setError] = useState("");
@@ -53,7 +46,6 @@ const EditUser: React.FC<EditUserProps> = ({
       validUntil: undefined,
       defaultRole: "",
       defaultDatabase: "",
-      grantDatabases: [],
       grantees: "NONE",
       settings: {
         profile: "",
@@ -62,21 +54,14 @@ const EditUser: React.FC<EditUserProps> = ({
       privileges: {
         isAdmin: false,
         grants: [] as GrantedPermission[],
-        allowDDL: false,
-        allowInsert: false,
-        allowSelect: false,
-        allowAlter: false,
-        allowCreate: false,
-        allowDrop: false,
-        allowTruncate: false,
       },
     },
   });
 
-  const metadata = useMetadata(isOpen);
+  const metadata = useMetadata(true);
   const { runQuery } = useAppStore();
-  const { userInfo, loading: userLoading } = useUserData({ username: username || undefined });
-  const { grants, loading: grantsLoading } = useGrants({ userName: username || undefined });
+  const { userInfo, loading: userLoading } = useUserData({ username });
+  const { grants, loading: grantsLoading } = useGrants({ userName: username });
   const { generateAlterUser, generateGrant, generateRevoke } = useSqlGenerator();
 
   // Populate form when user data is loaded
@@ -111,7 +96,6 @@ const EditUser: React.FC<EditUserProps> = ({
         validUntil: undefined,
         defaultRole: userInfo.default_roles_list?.[0] || "",
         defaultDatabase: userInfo.default_database || "",
-        grantDatabases: [],
         grantees,
         settings: {
           profile: userInfo.settings?.profile || "",
@@ -120,13 +104,6 @@ const EditUser: React.FC<EditUserProps> = ({
         privileges: {
           isAdmin: false,
           grants,
-          allowDDL: false,
-          allowInsert: false,
-          allowSelect: false,
-          allowAlter: false,
-          allowCreate: false,
-          allowDrop: false,
-          allowTruncate: false,
         },
       });
     }
@@ -244,7 +221,6 @@ const EditUser: React.FC<EditUserProps> = ({
       }
 
       onUserUpdated();
-      onOpenChange(false);
     } catch (err: any) {
       setError(err.message || "Failed to update user");
     } finally {
@@ -279,14 +255,27 @@ const EditUser: React.FC<EditUserProps> = ({
   const isLoading = userLoading || grantsLoading;
 
   return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>Edit User: {username}</SheetTitle>
-        </SheetHeader>
+    <div className="w-full max-w-4xl mx-auto p-6">
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        onClick={onBack}
+        className="mb-6 gap-2"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Users & Roles
+      </Button>
 
+      {/* Title */}
+      <h1 className="text-3xl font-medium mb-2">Edit User: {username}</h1>
+      <p className="text-gray-400 mb-6">
+        Modify authentication, permissions, and settings for this user.
+      </p>
+
+      {/* Form Container */}
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
         {isLoading ? (
-          <div className="space-y-4 pt-6">
+          <div className="space-y-4">
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
@@ -295,7 +284,7 @@ const EditUser: React.FC<EditUserProps> = ({
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-4 pt-6"
+              className="space-y-6"
             >
               {/* Authentication Section - with edit mode */}
               <AuthenticationSection
@@ -338,8 +327,8 @@ const EditUser: React.FC<EditUserProps> = ({
             </form>
           </Form>
         )}
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   );
 };
 

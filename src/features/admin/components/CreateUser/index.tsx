@@ -1,14 +1,7 @@
 // components/CreateNewUser/index.tsx
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { ArrowLeft } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,11 +26,11 @@ import {
 } from "./PrivilegesSection/permissions";
 
 interface CreateNewUserProps {
+  onBack: () => void;
   onUserCreated: () => void;
 }
 
-const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const CreateNewUser: React.FC<CreateNewUserProps> = ({ onBack, onUserCreated }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [onCluster, setOnCluster] = useState(false);
@@ -52,7 +45,6 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
       validUntil: undefined,
       defaultRole: "",
       defaultDatabase: "",
-      grantDatabases: [],
       grantees: "NONE",
       settings: {
         profile: "",
@@ -61,19 +53,11 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
       privileges: {
         isAdmin: false,
         grants: [] as GrantedPermission[],
-        // Legacy fields for backward compatibility
-        allowDDL: false,
-        allowInsert: false,
-        allowSelect: false,
-        allowAlter: false,
-        allowCreate: false,
-        allowDrop: false,
-        allowTruncate: false,
       },
     },
   });
 
-  const metadata = useMetadata(isOpen); // Fetch roles, databases, profiles
+  const metadata = useMetadata(true); // Always fetch roles, databases, profiles
   const { runQuery, credential } = useAppStore();
 
   // Set cluster settings from credentials
@@ -88,12 +72,6 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
     try {
       setError("");
       setLoading(true);
-
-      // Validate database grants
-      if (!data.privileges.isAdmin && data.grantDatabases.length === 0) {
-        setError("Please select at least one database to grant access to");
-        return;
-      }
 
       // Create user
       const createUserQuery = buildUserCreationQuery(data);
@@ -123,9 +101,8 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
       }
 
       toast.success(`User ${data.username} created successfully`);
-      onUserCreated();
-      setIsOpen(false);
       form.reset();
+      onUserCreated();
     } catch (err: any) {
       setError(err.message || "Failed to create user");
     } finally {
@@ -230,31 +207,7 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
       return queries;
     }
 
-    // Fallback to legacy flat permissions for backward compatibility
-    for (const db of data.grantDatabases) {
-      const privileges = [];
-
-      if (data.privileges.allowSelect) privileges.push("SELECT");
-      if (data.privileges.allowInsert) privileges.push("INSERT");
-      if (data.privileges.allowAlter) privileges.push("ALTER");
-      if (data.privileges.allowCreate) privileges.push("CREATE");
-      if (data.privileges.allowDrop) privileges.push("DROP");
-      if (data.privileges.allowTruncate) privileges.push("TRUNCATE");
-
-      if (privileges.length > 0) {
-        queries.push(
-          `GRANT ${privileges.join(", ")} ON ${db}.* TO ${username}`
-        );
-      }
-
-      // If DDL is allowed, grant additional schema modification privileges
-      if (data.privileges.allowDDL) {
-        queries.push(
-          `GRANT CREATE, DROP, ALTER, CREATE DATABASE ON ${db}.* TO ${username}`
-        );
-      }
-    }
-
+    // If no grants specified, return empty array
     return queries;
   };
 
@@ -263,22 +216,29 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        <Button className="gap-2 max-w-fit" variant="outline">
-          <Plus className="h-4 w-4" />
-          Create New User
-        </Button>
-      </SheetTrigger>
-      <SheetContent className="sm:max-w-xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>Create New ClickHouse User</SheetTitle>
-        </SheetHeader>
+    <div className="w-full max-w-4xl mx-auto p-6">
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        onClick={onBack}
+        className="mb-6 gap-2"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Users & Roles
+      </Button>
 
+      {/* Title */}
+      <h1 className="text-3xl font-medium mb-2">Create New ClickHouse User</h1>
+      <p className="text-gray-400 mb-6">
+        Configure authentication, permissions, and settings for the new user.
+      </p>
+
+      {/* Form Container */}
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4 pt-6"
+            className="space-y-6"
           >
             {/* Authentication Section */}
             <AuthenticationSection
@@ -344,8 +304,8 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onUserCreated }) => {
             </Button>
           </form>
         </Form>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   );
 };
 

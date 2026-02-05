@@ -3,17 +3,6 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Combobox,
-  ComboboxChips,
-  ComboboxChip,
-  ComboboxChipsInput,
-  ComboboxContent,
-  ComboboxList,
-  ComboboxItem,
-  ComboboxEmpty,
-  useComboboxAnchor
-} from "@/components/ui/combobox";
 
 interface DatabaseRolesSectionProps {
   form: any;
@@ -22,7 +11,6 @@ interface DatabaseRolesSectionProps {
 }
 
 const DatabaseRolesSection: React.FC<DatabaseRolesSectionProps> = ({ form, roles, databases }) => {
-  const grantDatabases = form.watch("grantDatabases") || [];
 
   return (
     <Card>
@@ -80,45 +68,6 @@ const DatabaseRolesSection: React.FC<DatabaseRolesSectionProps> = ({ form, roles
               <FormMessage />
             </FormItem>
           )}
-        />
-
-        {/* Grant Access to Databases */}
-        <FormField
-          control={form.control}
-          name="grantDatabases"
-          render={({ field }) => {
-            const anchor = useComboboxAnchor();
-
-            return (
-              <FormItem>
-                <FormLabel>Grant Access to Databases</FormLabel>
-                <FormControl>
-                  <Combobox
-                    multiple
-                    value={field.value || []}
-                    onValueChange={(values) => {
-                      form.setValue("grantDatabases", values);
-                    }}
-                  >
-                    <ComboboxChips ref={anchor}>
-                      <ComboboxChipsInput placeholder="Select databases to grant access" />
-                    </ComboboxChips>
-                    <ComboboxContent anchor={anchor.current}>
-                      <ComboboxList>
-                        {databases.map((db) => (
-                          <ComboboxItem key={db} value={db}>
-                            {db}
-                          </ComboboxItem>
-                        ))}
-                        <ComboboxEmpty>No databases found</ComboboxEmpty>
-                      </ComboboxList>
-                    </ComboboxContent>
-                  </Combobox>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            );
-          }}
         />
       </CardContent>
     </Card>

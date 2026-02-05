@@ -1,5 +1,6 @@
 // components/UserTable/index.tsx
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Card,
   CardHeader,
@@ -8,7 +9,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw, AlertTriangle } from "lucide-react";
+import { RefreshCcw, AlertTriangle, Plus } from "lucide-react";
 import { toast } from "sonner";
 import useAppStore from "@/store";
 import SearchBar from "./SearchBar";
@@ -22,15 +23,20 @@ import CreateNewUser from "../CreateUser/index";
 import EditUser from "../CreateUser/EditUser";
 import { generateRandomPassword } from "@/lib/utils";
 
+type ViewState =
+  | { mode: "list" }
+  | { mode: "create" }
+  | { mode: "edit"; username: string };
+
 const UserTable: React.FC = () => {
   const { runQuery, isAdmin } = useAppStore();
+  const [viewState, setViewState] = useState<ViewState>({ mode: "list" });
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -168,89 +174,140 @@ const UserTable: React.FC = () => {
     </div>
   );
 
-  if (loading) {
+  if (loading && viewState.mode === "list") {
     return <TableSkeletons />;
   }
 
   return (
-    <Card className="border shadow-md">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-2xl font-bold">
-              User Management
-            </CardTitle>
-            <CardDescription>
-              Manage database users, roles, and permissions
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setRefreshTrigger((prev) => prev + 1)}
-              className={loading ? "animate-spin" : ""}
-            >
-              <RefreshCcw className="h-4 w-4" />
-            </Button>
-            {isAdmin && (
-              <CreateNewUser
-                onUserCreated={() => setRefreshTrigger((prev) => prev + 1)}
+    <AnimatePresence mode="wait">
+      {viewState.mode === "list" && (
+        <motion.div
+          key="list"
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: -20, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <Card className="border shadow-md">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-bold">
+                    User Management
+                  </CardTitle>
+                  <CardDescription>
+                    Manage database users, roles, and permissions
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setRefreshTrigger((prev) => prev + 1)}
+                    className={loading ? "animate-spin" : ""}
+                  >
+                    <RefreshCcw className="h-4 w-4" />
+                  </Button>
+                  {isAdmin && (
+                    <Button
+                      className="gap-2 max-w-fit"
+                      variant="outline"
+                      onClick={() => setViewState({ mode: "create" })}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Create New User
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent>
+              <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+
+              {error && (
+                <div className="flex items-center gap-2 bg-destructive/15 text-destructive px-4 py-2 rounded-md mb-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <UserTableComponent
+                users={filteredUsers}
+                setSelectedUser={setSelectedUser}
+                setShowDeleteDialog={setShowDeleteDialog}
+                setShowResetPasswordDialog={setShowResetPasswordDialog}
+                setShowEditDialog={(show: boolean) => {
+                  if (show && selectedUser) {
+                    setViewState({ mode: "edit", username: selectedUser });
+                  }
+                }}
               />
-            )}
-          </div>
-        </div>
-      </CardHeader>
+            </CardContent>
 
-      <CardContent>
-        <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+            {/* Action Dialogs */}
+            <ResetPasswordDialog
+              open={showResetPasswordDialog}
+              onOpenChange={setShowResetPasswordDialog}
+              selectedUser={selectedUser}
+              onResetPassword={handleRefreshPassword}
+            />
 
-        {error && (
-          <div className="flex items-center gap-2 bg-destructive/15 text-destructive px-4 py-2 rounded-md mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <span>{error}</span>
-          </div>
-        )}
+            <NewPasswordDialog
+              open={!!newPassword}
+              onOpenChange={() => setNewPassword(null)}
+              selectedUser={selectedUser}
+              newPassword={newPassword}
+            />
 
-        <UserTableComponent
-          users={filteredUsers}
-          setSelectedUser={setSelectedUser}
-          setShowDeleteDialog={setShowDeleteDialog}
-          setShowResetPasswordDialog={setShowResetPasswordDialog}
-          setShowEditDialog={setShowEditDialog}
-        />
-      </CardContent>
+            <DeleteUserDialog
+              open={showDeleteDialog}
+              onOpenChange={setShowDeleteDialog}
+              selectedUser={selectedUser}
+              onDeleteUser={handleDeleteUser}
+              deleting={deleting}
+            />
+          </Card>
+        </motion.div>
+      )}
 
-      {/* Action Dialogs */}
-      <ResetPasswordDialog
-        open={showResetPasswordDialog}
-        onOpenChange={setShowResetPasswordDialog}
-        selectedUser={selectedUser}
-        onResetPassword={handleRefreshPassword}
-      />
+      {viewState.mode === "create" && (
+        <motion.div
+          key="create"
+          initial={{ x: 20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: 20, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <CreateNewUser
+            onBack={() => setViewState({ mode: "list" })}
+            onUserCreated={() => {
+              setRefreshTrigger((prev) => prev + 1);
+              setViewState({ mode: "list" });
+            }}
+          />
+        </motion.div>
+      )}
 
-      <NewPasswordDialog
-        open={!!newPassword}
-        onOpenChange={() => setNewPassword(null)}
-        selectedUser={selectedUser}
-        newPassword={newPassword}
-      />
-
-      <DeleteUserDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        selectedUser={selectedUser}
-        onDeleteUser={handleDeleteUser}
-        deleting={deleting}
-      />
-
-      <EditUser
-        username={selectedUser}
-        isOpen={showEditDialog}
-        onOpenChange={setShowEditDialog}
-        onUserUpdated={() => setRefreshTrigger((prev) => prev + 1)}
-      />
-    </Card>
+      {viewState.mode === "edit" && (
+        <motion.div
+          key="edit"
+          initial={{ x: 20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: 20, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <EditUser
+            username={viewState.username}
+            onBack={() => setViewState({ mode: "list" })}
+            onUserUpdated={() => {
+              setRefreshTrigger((prev) => prev + 1);
+              setViewState({ mode: "list" });
+            }}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 

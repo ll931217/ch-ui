@@ -31,7 +31,7 @@ const PrivilegesPanel: React.FC<PrivilegesPanelProps> = ({
   } = usePrivilegesPanel({ databases, tables, grants, onChange });
 
   return (
-    <div className="grid grid-cols-[250px_250px_1fr] h-[500px] border rounded-lg overflow-hidden">
+    <div className="grid grid-cols-[250px_250px_1fr] h-125 border rounded-lg overflow-hidden">
       {/* Left Panel: Databases */}
       <DatabaseList
         databases={databases}
@@ -45,9 +45,7 @@ const PrivilegesPanel: React.FC<PrivilegesPanelProps> = ({
       <TableList
         tables={availableTables}
         selectedTable={state.selectedTable}
-        onSelectTable={(table) =>
-          setState({ ...state, selectedTable: table })
-        }
+        onSelectTable={(table) => setState({ ...state, selectedTable: table })}
         disabled={!state.selectedDatabase}
       />
 
@@ -77,13 +75,13 @@ const PrivilegesPanel: React.FC<PrivilegesPanelProps> = ({
                 onCheckAll={() =>
                   setAllPrivileges(
                     group.privileges.map((p) => p.id),
-                    true
+                    true,
                   )
                 }
                 onClearAll={() =>
                   setAllPrivileges(
                     group.privileges.map((p) => p.id),
-                    false
+                    false,
                   )
                 }
               />

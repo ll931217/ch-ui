@@ -25,13 +25,15 @@ import {
   findParentId,
   formatScope,
 } from "./PrivilegesSection/permissions";
+import { PendingChange } from "../PermissionsConfig/types";
 
 interface CreateNewUserProps {
   onBack: () => void;
   onUserCreated: () => void;
+  onAddChange: (change: Omit<PendingChange, "id" | "createdAt">) => void;
 }
 
-const CreateNewUser: React.FC<CreateNewUserProps> = ({ onBack, onUserCreated }) => {
+const CreateNewUser: React.FC<CreateNewUserProps> = ({ onBack, onUserCreated, onAddChange }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [onCluster, setOnCluster] = useState(false);
@@ -52,14 +54,13 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onBack, onUserCreated }) 
         readonly: false,
       },
       privileges: {
-        isAdmin: false,
         grants: [] as GrantedPermission[],
       },
     },
   });
 
   const metadata = useMetadata(true); // Always fetch roles, databases, profiles
-  const { runQuery, credential } = useAppStore();
+  const { credential } = useAppStore();
 
   // Set cluster settings from credentials
   React.useEffect(() => {
@@ -74,38 +75,37 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onBack, onUserCreated }) 
       setError("");
       setLoading(true);
 
-      // Create user
-      const createUserQuery = buildUserCreationQuery(data);
-      const createResult = await runQuery(createUserQuery);
+      // Collect all SQL statements
+      const statements: string[] = [];
 
-      if (createResult.error) {
-        setError(createResult.error);
-        return;
-      }
+      // Add user creation statement
+      statements.push(buildUserCreationQuery(data));
 
-      // Grant privileges
+      // Add grant statements
       const grantQueries = buildGrantQueries(data.username, data);
+      statements.push(...grantQueries);
 
-      for (const query of grantQueries) {
-        const result = await runQuery(query);
-        if (result.error) {
-          // If there's an error, try to clean up by dropping the user
-          await runQuery(`DROP USER IF EXISTS ${data.username}`);
-          setError(`Failed to grant privileges: ${result.error}`);
-          return;
-        }
-      }
-
-      // If readonly mode is enabled, add additional restrictions
+      // Add readonly setting if enabled
       if (data.settings.readonly) {
-        await runQuery(`ALTER USER ${data.username} SETTINGS READONLY=1`);
+        statements.push(`ALTER USER ${data.username} SETTINGS READONLY=1`);
       }
 
-      toast.success(`User ${data.username} created successfully`);
+      // Stage the change instead of executing
+      onAddChange({
+        type: "CREATE",
+        entityType: "USER",
+        entityName: data.username,
+        description: `Create user ${data.username}`,
+        sqlStatements: statements,
+        originalState: null,
+        newState: { ...data },
+      });
+
+      toast.info(`User creation for ${data.username} staged for review`);
       form.reset();
-      onUserCreated();
+      onBack();
     } catch (err: any) {
-      setError(err.message || "Failed to create user");
+      setError(err.message || "Failed to stage user creation");
     } finally {
       setLoading(false);
     }
@@ -164,14 +164,7 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onBack, onUserCreated }) 
   const buildGrantQueries = (username: string, data: any) => {
     const queries: string[] = [];
 
-    if (data.privileges.isAdmin) {
-      // Use CURRENT GRANTS to only grant privileges the current user has
-      // This avoids permission errors when the current user doesn't have ALL privileges
-      queries.push(`GRANT CURRENT GRANTS ON *.* TO ${username} WITH GRANT OPTION`);
-      return queries;
-    }
-
-    // Use new hierarchical grants if available
+    // Use hierarchical grants from privileges panel or presets
     const grants: GrantedPermission[] = data.privileges.grants || [];
     if (grants.length > 0) {
       // Create a map of granted permission IDs for quick lookup
@@ -312,7 +305,7 @@ const CreateNewUser: React.FC<CreateNewUserProps> = ({ onBack, onUserCreated }) 
 
           {/* Submit Button */}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating..." : "Create User"}
+            {loading ? "Staging..." : "Stage User Creation"}
           </Button>
         </form>
       </Form>

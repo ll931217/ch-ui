@@ -28,10 +28,10 @@ const DatabaseList: React.FC<DatabaseListProps> = ({
               "w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-2",
               selectedDatabase === null
                 ? "bg-primary text-primary-foreground"
-                : "hover:bg-muted"
+                : "hover:bg-muted",
             )}
           >
-            <Database className="h-4 w-4 flex-shrink-0" />
+            <Database className="h-4 w-4 shrink-0" />
             <span className="truncate">% (All)</span>
           </button>
 
@@ -44,10 +44,10 @@ const DatabaseList: React.FC<DatabaseListProps> = ({
                 "w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-2",
                 selectedDatabase === db
                   ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
+                  : "hover:bg-muted",
               )}
             >
-              <Database className="h-4 w-4 flex-shrink-0" />
+              <Database className="h-4 w-4 shrink-0" />
               <span className="truncate">{db}</span>
             </button>
           ))}

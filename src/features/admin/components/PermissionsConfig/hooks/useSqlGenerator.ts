@@ -108,7 +108,7 @@ export function useSqlGenerator() {
         statements.push(`ALTER USER ${username} ${hostClause}`);
       }
 
-      if (changes.defaultDatabase !== undefined) {
+      if (changes.defaultDatabase !== undefined && changes.defaultDatabase !== "") {
         statements.push(
           `ALTER USER ${username} DEFAULT DATABASE ${changes.defaultDatabase}`
         );

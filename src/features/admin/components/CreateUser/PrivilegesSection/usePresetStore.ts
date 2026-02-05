@@ -4,12 +4,45 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { PrivilegePreset, PresetExportData } from "./presetTypes";
 import { GrantedPermission } from "./permissions";
+import { getAllPermissionIds } from "./permissions";
+
+// Generate default "Admin" preset with all global privileges
+function createAdminPreset(): Omit<PrivilegePreset, "id" | "createdAt" | "updatedAt"> {
+  const allPermissionIds = getAllPermissionIds();
+  const grants: GrantedPermission[] = allPermissionIds.map((permissionId) => ({
+    permissionId,
+    scope: { type: "global" as const },
+  }));
+
+  return {
+    name: "Full Admin (All Privileges)",
+    grants,
+  };
+}
+
+// Generate default "Read-Only" preset
+function createReadOnlyPreset(): Omit<PrivilegePreset, "id" | "createdAt" | "updatedAt"> {
+  return {
+    name: "Read-Only Access",
+    grants: [
+      {
+        permissionId: "SELECT",
+        scope: { type: "global" as const },
+      },
+      {
+        permissionId: "SHOW",
+        scope: { type: "global" as const },
+      },
+    ],
+  };
+}
 
 interface PresetState {
   presetsByConnection: Record<string, PrivilegePreset[]>;
 
   // Actions
   getPresets: (connectionId: string) => PrivilegePreset[];
+  ensureDefaultPresets: (connectionId: string) => void;
   addPreset: (
     connectionId: string,
     name: string,
@@ -31,6 +64,36 @@ export const usePresetStore = create<PresetState>()(
 
       getPresets: (connectionId) => {
         return get().presetsByConnection[connectionId] || [];
+      },
+
+      ensureDefaultPresets: (connectionId) => {
+        const existing = get().presetsByConnection[connectionId];
+
+        // Only create defaults if connection has no presets
+        if (!existing || existing.length === 0) {
+          const now = new Date().toISOString();
+
+          const adminPreset: PrivilegePreset = {
+            ...createAdminPreset(),
+            id: crypto.randomUUID(),
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          const readOnlyPreset: PrivilegePreset = {
+            ...createReadOnlyPreset(),
+            id: crypto.randomUUID(),
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          set((state) => ({
+            presetsByConnection: {
+              ...state.presetsByConnection,
+              [connectionId]: [adminPreset, readOnlyPreset],
+            },
+          }));
+        }
       },
 
       addPreset: (connectionId, name, grants) => {

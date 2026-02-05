@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import UserTable from "@/features/admin/components/UserManagement/index";
-import { InfoIcon, ShieldCheck } from "lucide-react";
+import { InfoIcon, ShieldCheck, FileText } from "lucide-react";
 import InfoDialog from "@/components/common/InfoDialog";
 import AuditLogViewer from "@/features/admin/components/PermissionsConfig/AuditLogViewer";
+import SettingsProfilesLayer from "@/features/admin/components/PermissionsConfig/SettingsProfilesLayer";
+import ReviewPanel from "@/features/admin/components/PermissionsConfig/ReviewPanel";
+import { usePermissionsState } from "@/features/admin/components/PermissionsConfig/hooks/usePermissionsState";
 import useAppStore from "@/store";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -11,25 +15,65 @@ export default function Admin() {
   const { userPrivileges } = useAppStore();
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("users");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Use permissions state for staging changes
+  const permissionsState = usePermissionsState();
+  const {
+    pendingChanges,
+    isReviewPanelOpen,
+    isExecuting,
+    executionResults,
+    executionProgress,
+    currentExecutingChange,
+    addPendingChange,
+    removePendingChange,
+    clearPendingChanges,
+    toggleReviewPanel,
+    executePendingChanges,
+  } = permissionsState;
 
   // Check if user can view users/roles section
   const canViewUsersRoles = userPrivileges?.canShowUsers || userPrivileges?.canShowRoles;
+
+  // Refresh data after successful execution
+  const handleExecuteChanges = async () => {
+    const results = await executePendingChanges();
+    const allSucceeded = results.every((r) => r.success);
+    if (allSucceeded && results.length > 0) {
+      // Trigger data refresh
+      setRefreshTrigger((prev) => prev + 1);
+    }
+  };
 
   return (
     <ErrorBoundary>
       <div className="max-h-screen w-full overflow-y-auto">
         <div className="container mx-auto p-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-medium  mb-2 flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6" />
-            Administration
-            <span
-              onClick={() => setIsInfoOpen(true)}
-              className="text-xs bg-purple-500/40 border border-purple-500 text-purple-600 px-2 py-1 rounded-md cursor-pointer flex items-center gap-1"
-            >
-              ALPHA <InfoIcon className="w-4 h-4" />
-            </span>
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-medium mb-2 flex items-center gap-2">
+              <ShieldCheck className="w-6 h-6" />
+              Administration
+              <span
+                onClick={() => setIsInfoOpen(true)}
+                className="text-xs bg-purple-500/40 border border-purple-500 text-purple-600 px-2 py-1 rounded-md cursor-pointer flex items-center gap-1"
+              >
+                ALPHA <InfoIcon className="w-4 h-4" />
+              </span>
+            </h1>
+            {pendingChanges.length > 0 && (
+              <Button
+                onClick={toggleReviewPanel}
+                variant="outline"
+                className="gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                Review Changes
+                <Badge variant="secondary">{pendingChanges.length}</Badge>
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-6">
@@ -77,20 +121,16 @@ export default function Admin() {
             <div className="space-y-6">
               {activeSection === "users" && (
                 <div>
-                  <UserTable />
+                  <UserTable
+                    onAddChange={addPendingChange}
+                    refreshTrigger={refreshTrigger}
+                  />
                 </div>
               )}
 
               {activeSection === "settings-profiles" && (
                 <div>
-                  <h2 className="text-2xl font-medium mb-2">Settings Profiles</h2>
-                  <p className="text-gray-400 mb-6">
-                    Manage ClickHouse settings profiles for users and roles.
-                  </p>
-                  {/* TODO: Implement Settings Profiles component in Phase 6 */}
-                  <div className="text-sm text-gray-500">
-                    Settings Profiles management will be implemented here.
-                  </div>
+                  <SettingsProfilesLayer onAddChange={addPendingChange} />
                 </div>
               )}
 
@@ -127,6 +167,20 @@ export default function Admin() {
             </p>
           </div>
         </InfoDialog>
+
+        {/* Review Panel */}
+        <ReviewPanel
+          isOpen={isReviewPanelOpen}
+          changes={pendingChanges}
+          isExecuting={isExecuting}
+          executionResults={executionResults}
+          executionProgress={executionProgress}
+          currentExecutingChange={currentExecutingChange}
+          onClose={toggleReviewPanel}
+          onExecute={handleExecuteChanges}
+          onRemoveChange={removePendingChange}
+          onClearAll={clearPendingChanges}
+        />
         </div>
       </div>
     </ErrorBoundary>

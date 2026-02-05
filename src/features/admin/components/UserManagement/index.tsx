@@ -22,13 +22,19 @@ import { UserData } from "@/features/admin/types";
 import CreateNewUser from "../CreateUser/index";
 import EditUser from "../CreateUser/EditUser";
 import { generateRandomPassword } from "@/lib/utils";
+import { PendingChange } from "../PermissionsConfig/types";
 
 type ViewState =
   | { mode: "list" }
   | { mode: "create" }
   | { mode: "edit"; username: string };
 
-const UserTable: React.FC = () => {
+interface UserTableProps {
+  onAddChange: (change: Omit<PendingChange, "id" | "createdAt">) => void;
+  refreshTrigger?: number;
+}
+
+const UserTable: React.FC<UserTableProps> = ({ onAddChange, refreshTrigger: externalRefreshTrigger = 0 }) => {
   const { runQuery, isAdmin } = useAppStore();
   const [viewState, setViewState] = useState<ViewState>({ mode: "list" });
   const [users, setUsers] = useState<UserData[]>([]);
@@ -37,7 +43,6 @@ const UserTable: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [newPassword, setNewPassword] = useState<string | null>(null);
@@ -112,28 +117,30 @@ const UserTable: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers, refreshTrigger]);
+  }, [fetchUsers, refreshTrigger, externalRefreshTrigger]);
 
-  const handleDeleteUser = async (username: string) => {
+  const handleDeleteUser = (username: string) => {
     if (!isAdmin) {
       toast.error("You need administrator privileges to delete users");
       return;
     }
 
-    setDeleting(true);
-    try {
-      await runQuery(`REVOKE ALL PRIVILEGES ON *.* FROM ${username}`);
-      await runQuery(`DROP USER IF EXISTS ${username}`);
-      toast.success(`User ${username} deleted successfully`);
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (error: any) {
-      const errorMessage = error.message || "Failed to delete user";
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setDeleting(false);
-      setShowDeleteDialog(false);
-    }
+    // Stage deletion change instead of executing directly
+    onAddChange({
+      type: "DROP",
+      entityType: "USER",
+      entityName: username,
+      description: `Delete user ${username}`,
+      sqlStatements: [
+        `REVOKE ALL PRIVILEGES ON *.* FROM ${username}`,
+        `DROP USER IF EXISTS ${username}`,
+      ],
+      originalState: { username },
+      newState: null,
+    });
+
+    setShowDeleteDialog(false);
+    toast.info(`Deletion of user ${username} staged for review`);
   };
 
   const handleRefreshPassword = async (username: string) => {
@@ -263,7 +270,7 @@ const UserTable: React.FC = () => {
               onOpenChange={setShowDeleteDialog}
               selectedUser={selectedUser}
               onDeleteUser={handleDeleteUser}
-              deleting={deleting}
+              deleting={false}
             />
           </Card>
         </motion.div>
@@ -283,6 +290,7 @@ const UserTable: React.FC = () => {
               setRefreshTrigger((prev) => prev + 1);
               setViewState({ mode: "list" });
             }}
+            onAddChange={onAddChange}
           />
         </motion.div>
       )}
@@ -302,6 +310,7 @@ const UserTable: React.FC = () => {
               setRefreshTrigger((prev) => prev + 1);
               setViewState({ mode: "list" });
             }}
+            onAddChange={onAddChange}
           />
         </motion.div>
       )}

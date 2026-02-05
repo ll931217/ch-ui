@@ -40,7 +40,7 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
   const activeConnectionId = useConnectionStore(
     (state) => state.activeConnectionId
   );
-  const { getPresets, addPreset, updatePreset, deletePreset, importPresets } =
+  const { getPresets, ensureDefaultPresets, addPreset, updatePreset, deletePreset, importPresets } =
     usePresetStore();
 
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
@@ -56,6 +56,13 @@ const PresetToolbar: React.FC<PresetToolbarProps> = ({
 
   const presets = getPresets(activeConnectionId);
   const selectedPreset = presets.find((p) => p.id === selectedPresetId);
+
+  // Ensure default presets exist for this connection
+  useEffect(() => {
+    if (activeConnectionId) {
+      ensureDefaultPresets(activeConnectionId);
+    }
+  }, [activeConnectionId, ensureDefaultPresets]);
 
   // Sync input value with selected preset
   useEffect(() => {

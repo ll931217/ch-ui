@@ -23,17 +23,20 @@ import {
   formatScope,
 } from "./PrivilegesSection/permissions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PendingChange } from "../PermissionsConfig/types";
 
 interface EditUserProps {
   username: string;
   onBack: () => void;
   onUserUpdated: () => void;
+  onAddChange: (change: Omit<PendingChange, "id" | "createdAt">) => void;
 }
 
 const EditUser: React.FC<EditUserProps> = ({
   username,
   onBack,
   onUserUpdated,
+  onAddChange,
 }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,14 +56,12 @@ const EditUser: React.FC<EditUserProps> = ({
         readonly: false,
       },
       privileges: {
-        isAdmin: false,
         grants: [] as GrantedPermission[],
       },
     },
   });
 
   const metadata = useMetadata(true);
-  const { runQuery } = useAppStore();
   const { userInfo, loading: userLoading } = useUserData({ username });
   const { grants, loading: grantsLoading } = useGrants({ userName: username });
   const { generateAlterUser, generateGrant, generateRevoke } =
@@ -104,7 +105,6 @@ const EditUser: React.FC<EditUserProps> = ({
           readonly: userInfo.settings?.readonly || false,
         },
         privileges: {
-          isAdmin: false,
           grants,
         },
       });
@@ -153,18 +153,23 @@ const EditUser: React.FC<EditUserProps> = ({
       }
 
       // 3. Handle default database change
-      if (data.defaultDatabase !== userInfo?.default_database) {
+      const currentDefaultDb = data.defaultDatabase || "";
+      const originalDefaultDb = userInfo?.default_database || "";
+      if (currentDefaultDb !== originalDefaultDb) {
+        const dbValue = currentDefaultDb || undefined;
         statements.push(
           ...generateAlterUser(username, {
-            defaultDatabase: data.defaultDatabase,
+            defaultDatabase: dbValue,
           }),
         );
       }
 
       // 4. Handle settings changes
-      if (data.settings.profile !== userInfo?.settings?.profile) {
+      const currentProfile = data.settings.profile || "";
+      const originalProfile = userInfo?.settings?.profile || "";
+      if (currentProfile !== originalProfile && currentProfile !== "") {
         statements.push(
-          `ALTER USER ${username} SETTINGS PROFILE '${data.settings.profile}'`,
+          `ALTER USER ${username} SETTINGS PROFILE '${currentProfile}'`,
         );
       }
 
@@ -226,24 +231,26 @@ const EditUser: React.FC<EditUserProps> = ({
         }
       }
 
-      // Execute all statements
-      for (const statement of statements) {
-        const result = await runQuery(statement);
-        if (result.error) {
-          setError(`Failed to update user: ${result.error}`);
-          return;
-        }
-      }
-
+      // Stage all changes instead of executing
       if (statements.length === 0) {
         toast.info("No changes detected");
-      } else {
-        toast.success(`User ${username} updated successfully`);
+        return;
       }
 
-      onUserUpdated();
+      onAddChange({
+        type: "ALTER",
+        entityType: "USER",
+        entityName: username,
+        description: `Update user ${username}`,
+        sqlStatements: statements,
+        originalState: { userInfo, grants },
+        newState: { ...data },
+      });
+
+      toast.info(`Changes for user ${username} staged for review`);
+      onBack();
     } catch (err: any) {
-      setError(err.message || "Failed to update user");
+      setError(err.message || "Failed to stage user update");
     } finally {
       setLoading(false);
     }
@@ -358,7 +365,7 @@ const EditUser: React.FC<EditUserProps> = ({
               className="w-full"
               disabled={loading}
             >
-              {loading ? "Updating..." : "Update User"}
+              {loading ? "Staging..." : "Stage User Update"}
             </Button>
           </form>
         </Form>

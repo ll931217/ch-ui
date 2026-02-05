@@ -4,6 +4,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormDescription } from "@/
 import { Checkbox } from "@/components/ui/checkbox";
 import { GrantedPermission } from "./permissions";
 import PrivilegesPanel from "./PrivilegesPanel";
+import PresetToolbar from "./PresetToolbar";
 
 // Stable empty array reference to avoid creating new array on each render
 const EMPTY_GRANTS: GrantedPermission[] = [];
@@ -59,10 +60,17 @@ const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
 
         {/* Privileges Panel (hidden when admin) */}
         {!isAdmin && (
-          <div className="space-y-2">
+          <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
               Select the database and table scope on the left, then grant specific privileges on the right. Privileges can be inherited from broader scopes.
             </div>
+
+            {/* Preset Toolbar */}
+            <PresetToolbar
+              grants={currentGrants}
+              onApplyPreset={handleGrantsChange}
+            />
+
             <PrivilegesPanel
               databases={databases}
               tables={tables}

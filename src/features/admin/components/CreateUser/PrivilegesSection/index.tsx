@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useMemo, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FormField, FormItem, FormLabel, FormControl, FormDescription } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GrantedPermission } from "./permissions";
-import PermissionTree from "./PermissionTree";
+import PrivilegesPanel from "./PrivilegesPanel";
 
 // Stable empty array reference to avoid creating new array on each render
 const EMPTY_GRANTS: GrantedPermission[] = [];
@@ -20,24 +20,6 @@ const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
   tables = new Map(),
 }) => {
   const isAdmin = form.watch("privileges.isAdmin");
-  const grantDatabases = form.watch("grantDatabases") || [];
-
-  // Get table metadata for selected databases
-  const [tablesMap, setTablesMap] = useState<Map<string, string[]>>(new Map());
-
-  useEffect(() => {
-    // Filter tables to only include those from grantDatabases
-    const filteredTables = new Map<string, string[]>();
-    for (const db of grantDatabases) {
-      if (tables.has(db)) {
-        filteredTables.set(db, tables.get(db)!);
-      }
-    }
-    setTablesMap(filteredTables);
-  }, [grantDatabases, tables]);
-
-  // Available databases: combine grantDatabases with all databases
-  const availableDatabases = grantDatabases.length > 0 ? grantDatabases : databases;
 
   // Memoize handler to avoid unnecessary re-renders
   const handleGrantsChange = useCallback((grants: GrantedPermission[]) => {
@@ -75,19 +57,17 @@ const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
           )}
         />
 
-        {/* Permission Tree (hidden when admin) */}
+        {/* Privileges Panel (hidden when admin) */}
         {!isAdmin && (
           <div className="space-y-2">
             <div className="text-sm text-muted-foreground">
-              Select specific permissions to grant. Selecting a parent permission automatically includes all child permissions.
+              Select the database and table scope on the left, then grant specific privileges on the right. Privileges can be inherited from broader scopes.
             </div>
-            <PermissionTree
-              databases={availableDatabases}
-              tables={tablesMap}
-              value={currentGrants}
+            <PrivilegesPanel
+              databases={databases}
+              tables={tables}
+              grants={currentGrants}
               onChange={handleGrantsChange}
-              defaultScope={{ type: "database" }}
-              maxHeight={350}
             />
           </div>
         )}

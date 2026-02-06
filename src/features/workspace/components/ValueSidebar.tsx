@@ -88,31 +88,31 @@ const ValueSidebar: React.FC<ValueSidebarProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col border-l bg-background">
+    <div className="h-full w-full flex flex-col border-l bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b bg-muted/50">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+      <div className="flex items-center justify-between p-3 border-b bg-muted/50 min-w-0">
+        <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
           <span className="font-medium text-sm truncate">{fieldName}</span>
-          <Badge variant="outline" className="text-xs shrink-0">
+          <Badge variant="outline" className="text-xs shrink-0 whitespace-nowrap">
             Row {rowIndex + 1}
           </Badge>
           <Badge
             variant={getTypeBadgeVariant(valueType)}
-            className="text-xs shrink-0 gap-1"
+            className="text-xs shrink-0 gap-1 whitespace-nowrap"
           >
             {getTypeIcon(valueType)}
             {valueType.toUpperCase()}
           </Badge>
         </div>
 
-        <div className="flex items-center gap-1 ml-2">
+        <div className="flex items-center gap-1 ml-2 shrink-0">
           {/* Format toggle button - only show for formattable types */}
           {valueType !== "text" && (
             <Button
               variant={isFormatted ? "default" : "ghost"}
               size="sm"
               onClick={() => setIsFormatted(!isFormatted)}
-              className="h-7 px-2"
+              className="h-7 px-2 whitespace-nowrap"
             >
               {isFormatted ? "Raw" : "Format"}
             </Button>
@@ -130,12 +130,11 @@ const ValueSidebar: React.FC<ValueSidebarProps> = ({
       </div>
 
       {/* Body */}
-      <div className="flex-1 p-3 overflow-hidden">
+      <div className="flex-1 p-3 overflow-hidden w-full">
         <Textarea
           value={displayValue}
           readOnly
-          className="h-full resize-none font-mono text-sm"
-          style={{ minHeight: "100%" }}
+          className="h-full w-full resize-none font-mono text-sm"
         />
       </div>
     </div>

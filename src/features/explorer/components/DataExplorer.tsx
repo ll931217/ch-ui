@@ -70,7 +70,8 @@ const DatabaseExplorer: React.FC = () => {
         .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
       const views = db.children
         .filter(
-          (child) => child.type === "view" || child.type === "materialized_view",
+          (child) =>
+            child.type === "view" || child.type === "materialized_view",
         )
         .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
       const dictionaries = db.children
@@ -113,7 +114,8 @@ const DatabaseExplorer: React.FC = () => {
         .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
       const views = db.children
         .filter(
-          (child) => child.type === "view" || child.type === "materialized_view",
+          (child) =>
+            child.type === "view" || child.type === "materialized_view",
         )
         .sort((a, b) => a.name.localeCompare(b.name)) as TreeNodeData[];
       const dictionaries = db.children
@@ -175,7 +177,7 @@ const DatabaseExplorer: React.FC = () => {
         });
       },
     }),
-    [expandedPaths]
+    [expandedPaths],
   );
 
   const handleExpandAll = useCallback(() => {
@@ -307,28 +309,30 @@ const DatabaseExplorer: React.FC = () => {
             <TreeExpansionContext.Provider value={expansionContextValue}>
               <div className="flex flex-col h-full">
                 {/* Expand/Collapse buttons - only show when data is loaded */}
-                {!isLoadingDatabase && !tabError && organizedDatabases.length > 0 && (
-                  <div className="flex-none px-3 pt-2 pb-1 flex justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleExpandAll}
-                      className="h-7 px-2 text-xs"
-                    >
-                      <ChevronsDownUp className="w-3 h-3 mr-1" />
-                      Expand All
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleCollapseAll}
-                      className="h-7 px-2 text-xs"
-                    >
-                      <ChevronsUpDown className="w-3 h-3 mr-1" />
-                      Collapse All
-                    </Button>
-                  </div>
-                )}
+                {!isLoadingDatabase &&
+                  !tabError &&
+                  organizedDatabases.length > 0 && (
+                    <div className="flex-none px-3 pt-2 flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleExpandAll}
+                        className="h-7 px-2 text-xs"
+                      >
+                        <ChevronsDownUp className="w-3 h-3 mr-1" />
+                        Expand All
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCollapseAll}
+                        className="h-7 px-2 text-xs"
+                      >
+                        <ChevronsUpDown className="w-3 h-3 mr-1" />
+                        Collapse All
+                      </Button>
+                    </div>
+                  )}
 
                 <ScrollArea className="flex-1">
                   <div className="p-3">

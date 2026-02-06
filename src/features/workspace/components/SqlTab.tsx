@@ -302,14 +302,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       // Return to normal view
       setIsTransposed(false);
     } else {
-      // Transpose selected rows only
-      const selectedRows = gridRef.current?.api.getSelectedRows() || [];
-
-      if (selectedRows.length === 0) {
-        toast.error("Please select rows to transpose");
-        return;
-      }
-
       setIsTransposed(true);
     }
   }, [isTransposed]);
@@ -371,11 +363,36 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   // Handle transpose data transformation
   useEffect(() => {
     if (isTransposed && tab?.result?.data?.length && tab?.result?.meta?.length) {
-      const selectedRows = gridRef.current?.api.getSelectedRows() || [];
+      const gridApi = gridRef.current?.api;
+      let rowsToTranspose: IRow[] = [];
 
-      if (selectedRows.length > 0) {
+      if (gridApi) {
+        // First, try to get selected rows
+        const selectedRows = gridApi.getSelectedRows() || [];
+
+        if (selectedRows.length > 0) {
+          rowsToTranspose = selectedRows;
+        } else {
+          // If no rows selected, get all rows on current page
+          const displayedRows: IRow[] = [];
+          gridApi.forEachNodeAfterFilterAndSort((node, index) => {
+            // Get rows for current page only
+            const currentPage = gridApi.paginationGetCurrentPage() || 0;
+            const pageSize = gridApi.paginationGetPageSize() || 100;
+            const startIndex = currentPage * pageSize;
+            const endIndex = startIndex + pageSize;
+
+            if (index >= startIndex && index < endIndex && node.data) {
+              displayedRows.push(node.data);
+            }
+          });
+          rowsToTranspose = displayedRows;
+        }
+      }
+
+      if (rowsToTranspose.length > 0) {
         const { columnDefs: transposedCols, rowData: transposedData } =
-          transposeGridData(selectedRows, tab.result.meta);
+          transposeGridData(rowsToTranspose, tab.result.meta);
 
         setColumnDefs(transposedCols);
         setRowData(transposedData);
@@ -640,7 +657,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
                 size="sm"
                 className="h-6 w-6 p-0"
                 onClick={handleTransposeToggle}
-                title="Transpose selected rows (Tab)"
+                title="Transpose rows: selected or current page (Tab)"
               >
                 <Columns className="h-4 w-4" />
               </Button>

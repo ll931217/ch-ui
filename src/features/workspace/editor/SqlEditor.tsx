@@ -47,11 +47,12 @@ interface SQLEditorProps {
   tabId: string;
   onRunQuery: (query: string) => void;
   onRunAllQueries?: (queries: string[]) => void;
+  onFocusChange?: (focused: boolean) => void;
 }
 
 const HIGHLIGHT_DECORATION_CLASS = "current-query-highlight";
 
-const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQueries }) => {
+const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQueries, onFocusChange }) => {
   const { getTabById, updateTab, saveQuery, updateSavedQuery, dataBaseExplorer, selectedDatabase } =
     useAppStore();
   const { connections, activeConnectionId, getDatabasesForConnection } = useConnectionStore();
@@ -61,7 +62,7 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
   const statusBarRef = useRef<HTMLDivElement | null>(null);
   const decorationsRef = useRef<string[]>([]);
   const isDisposedRef = useRef(false);
-  const highlightTimeoutRef = useRef<number>();
+  const highlightTimeoutRef = useRef<number | undefined>(undefined);
   const usageTrackerRef = useRef<AutocompleteUsageTracker | null>(null);
   const handleRunQueryRef = useRef<() => void>(() => {});
   const handleRunAllQueriesRef = useRef<() => void>(() => {});
@@ -267,6 +268,14 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
         updateCurrentQueryHighlight();
       });
 
+      const focusListener = editor.onDidFocusEditorText(() => {
+        onFocusChange?.(true);
+      });
+
+      const blurListener = editor.onDidBlurEditorText(() => {
+        onFocusChange?.(false);
+      });
+
       editor.addCommand(
         monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
         () => { handleRunQueryRef.current(); }
@@ -301,6 +310,8 @@ const SQLEditor: React.FC<SQLEditorProps> = ({ tabId, onRunQuery, onRunAllQuerie
         isDisposedRef.current = true;
         changeListener.dispose();
         cursorListener.dispose();
+        focusListener.dispose();
+        blurListener.dispose();
         editor.dispose();
         monacoRef.current = null;
         const styleElement = document.getElementById(styleId);

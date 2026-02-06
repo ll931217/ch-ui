@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useCallback, useRef } from "react";
+import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { Loader2, FileX2, RefreshCw, AlertTriangle } from "lucide-react";
+import { Loader2, FileX2, RefreshCw, AlertTriangle, Columns, PanelRight } from "lucide-react";
 import { AgGridReact } from "ag-grid-react";
 import {
   ColDef,
@@ -24,7 +24,8 @@ import {
   getAvailableFormats,
   getFormatDisplayName,
 } from "@/lib/formatUtils";
-import CopyResultsDialog from "@/components/common/CopyResultsDialog";
+import { transposeGridData } from "@/lib/transposeGrid";
+import ValueSidebar from "./ValueSidebar";
 
 // Component imports
 import SQLEditor from "@/features/workspace/editor/SqlEditor";
@@ -98,6 +99,16 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     useState<PinnedColumnsState>({});
   const [metaPinnedColumnsState, setMetaPinnedColumnsState] =
     useState<PinnedColumnsState>({});
+
+  // New feature states
+  const [isTransposed, setIsTransposed] = useState(false);
+  const [isEditorFocused, setIsEditorFocused] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedCell, setSelectedCell] = useState<{
+    fieldName: string;
+    rowIndex: number;
+    value: any;
+  } | null>(null);
 
   const gridOptions = useMemo(
     () => createGridOptions(rowData.length),
@@ -285,6 +296,38 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     [columnDefs],
   );
 
+  // Handle transpose toggle
+  const handleTransposeToggle = useCallback(() => {
+    if (isTransposed) {
+      // Return to normal view
+      setIsTransposed(false);
+    } else {
+      // Transpose selected rows only
+      const selectedRows = gridRef.current?.api.getSelectedRows() || [];
+
+      if (selectedRows.length === 0) {
+        toast.error("Please select rows to transpose");
+        return;
+      }
+
+      setIsTransposed(true);
+    }
+  }, [isTransposed]);
+
+  // Handle cell clicked for value sidebar
+  const handleCellClicked = useCallback((event: any) => {
+    if (!isSidebarOpen) return;
+
+    const { colDef, rowIndex, value } = event;
+    const fieldName = colDef.field || colDef.headerName || "Unknown";
+
+    setSelectedCell({
+      fieldName,
+      rowIndex,
+      value,
+    });
+  }, [isSidebarOpen]);
+
   // Handle result index change for multi-query results
   const handleResultIndexChange = useCallback(
     (index: number) => {
@@ -325,6 +368,60 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     handleResetColumns,
   ]);
 
+  // Handle transpose data transformation
+  useEffect(() => {
+    if (isTransposed && tab?.result?.data?.length && tab?.result?.meta?.length) {
+      const selectedRows = gridRef.current?.api.getSelectedRows() || [];
+
+      if (selectedRows.length > 0) {
+        const { columnDefs: transposedCols, rowData: transposedData } =
+          transposeGridData(selectedRows, tab.result.meta);
+
+        setColumnDefs(transposedCols);
+        setRowData(transposedData);
+      }
+    } else if (!isTransposed && tab?.result?.data?.length && tab?.result?.meta?.length) {
+      // Return to normal view - trigger re-processing
+      const dataColDefs: ColDef<IRow>[] = tab.result.meta.map((col: any) => {
+        const colName = col.name;
+        return {
+          headerName: colName,
+          field: colName,
+          valueGetter: (param: any) => param.data[colName],
+          headerComponent: AgGridHeaderContextMenu,
+          headerComponentParams: {
+            onPinColumn: handlePinColumn,
+            onAutoSizeColumn: handleAutoSizeColumn,
+            onResetColumns: handleResetColumns,
+          },
+        };
+      });
+
+      setRowData(tab.result.data);
+      setColumnDefs(dataColDefs);
+    }
+  }, [isTransposed, tab?.result?.data, tab?.result?.meta, handlePinColumn, handleAutoSizeColumn, handleResetColumns]);
+
+  // Keyboard event handlers
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Tab key - transpose toggle (only when editor not focused and results tab active)
+      if (e.key === "Tab" && !isEditorFocused && activeTab === "results") {
+        e.preventDefault();
+        handleTransposeToggle();
+      }
+
+      // Escape key - close sidebar
+      if (e.key === "Escape" && isSidebarOpen) {
+        e.preventDefault();
+        setIsSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isEditorFocused, activeTab, isSidebarOpen, handleTransposeToggle]);
+
   // UI rendering functions
   const renderLoading = () => (
     <div className="h-full w-full flex items-center justify-center">
@@ -360,24 +457,26 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       ) : null;
     }
 
-    return (
+    const gridProps = {
+      ...gridOptions,
+      rowData,
+      columnDefs,
+      defaultColDef,
+      modules: [AllCommunityModule],
+      theme: gridTheme,
+      rowHeight: 32,
+      suppressMovableColumns: false,
+      rowSelection,
+      selectionColumn,
+      onCellClicked: handleCellClicked,
+    };
+
+    const gridContent = (
       <div className="h-full flex flex-col">
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div className="flex-1 relative">
-              <AgGridWrapper
-                ref={gridRef}
-                rowData={rowData}
-                columnDefs={columnDefs}
-                defaultColDef={defaultColDef}
-                modules={[AllCommunityModule]}
-                theme={gridTheme}
-                rowHeight={32}
-                suppressMovableColumns={false}
-                rowSelection={rowSelection}
-                selectionColumn={selectionColumn}
-                {...gridOptions}
-              />
+              <AgGridWrapper ref={gridRef} {...gridProps} />
             </div>
           </ContextMenuTrigger>
           <ContextMenuContent>
@@ -392,6 +491,27 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
           </ContextMenuContent>
         </ContextMenu>
       </div>
+    );
+
+    if (!isSidebarOpen || !selectedCell) {
+      return gridContent;
+    }
+
+    return (
+      <ResizablePanelGroup orientation="horizontal" className="h-full">
+        <ResizablePanel defaultSize={70}>
+          {gridContent}
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+          <ValueSidebar
+            fieldName={selectedCell.fieldName}
+            rowIndex={selectedCell.rowIndex}
+            value={selectedCell.value}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+        </ResizablePanel>
+      </ResizablePanelGroup>
     );
   };
 
@@ -515,10 +635,27 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
             )}
 
             {hasData && activeTab === "results" && (
-              <CopyResultsDialog
-                data={tab?.result.data}
-                columns={tab?.result.meta.map((m: any) => m.name) || []}
-              />
+              <Button
+                variant={isTransposed ? "default" : "ghost"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={handleTransposeToggle}
+                title="Transpose selected rows (Tab)"
+              >
+                <Columns className="h-4 w-4" />
+              </Button>
+            )}
+
+            {hasData && activeTab === "results" && (
+              <Button
+                variant={isSidebarOpen ? "default" : "ghost"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                title="Toggle value sidebar"
+              >
+                <PanelRight className="h-4 w-4" />
+              </Button>
             )}
 
             {hasData && activeTab === "results" && (
@@ -599,6 +736,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
             tabId={tabId}
             onRunQuery={handleRunQuery}
             onRunAllQueries={handleRunAllQueries}
+            onFocusChange={setIsEditorFocused}
           />
         </ResizablePanel>
         <ResizableHandle className="w-full h-1" withHandle />

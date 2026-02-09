@@ -19,7 +19,8 @@ export const appQueries: Record<string, AppQuery> = {
     SELECT
       databases.name AS database_name,
       tables.name AS table_name,
-      tables.engine AS table_type
+      tables.engine AS table_type,
+      tables.total_bytes AS total_bytes
     FROM system.databases AS databases
     LEFT JOIN system.tables AS tables
       ON databases.name = tables.database
@@ -29,7 +30,8 @@ export const appQueries: Record<string, AppQuery> = {
     SELECT
       database AS database_name,
       name AS table_name,
-      'Dictionary' AS table_type
+      'Dictionary' AS table_type,
+      bytes_allocated AS total_bytes
     FROM system.dictionaries
 
     ORDER BY database_name, table_name;

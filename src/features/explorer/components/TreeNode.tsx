@@ -32,12 +32,14 @@ import ConfirmationDialog from "@/components/common/ConfirmationDialog";
 import { toast } from "sonner";
 import useAppStore from "@/store";
 import { useTreeExpansion } from "@/features/explorer/context/TreeExpansionContext";
+import { formatBytes } from "@/lib/utils";
 
 export interface TreeNodeData {
   name: string;
   type: "database" | "table" | "view" | "dictionary" | "materialized_view" | "saved_query";
   children?: TreeNodeData[];
   query?: string;
+  total_bytes?: number;
 }
 
 interface TreeNodeProps {
@@ -374,9 +376,14 @@ const TreeNode: React.FC<TreeNodeProps> = ({
                     }
                   }
                 }}
-                className="text-xs"
+                className="text-xs flex items-center gap-1"
               >
-                <p className="truncate"> {node.name}</p>
+                <p className="truncate">{node.name}</p>
+                {node.total_bytes !== undefined && node.total_bytes > 0 && (
+                  <span className="text-muted-foreground text-[10px] shrink-0">
+                    ({formatBytes(node.total_bytes)})
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex items-center">

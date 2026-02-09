@@ -729,12 +729,13 @@ const useAppStore = create<AppState>()(
                 database_name: string;
                 table_name?: string;
                 table_type?: string;
+                total_bytes?: number;
               }>;
             };
             const databases: Record<string, DatabaseInfo> = {};
 
             resultJSON.data.forEach((row) => {
-              const { database_name, table_name, table_type } = row;
+              const { database_name, table_name, table_type, total_bytes } = row;
               if (!databases[database_name]) {
                 databases[database_name] = {
                   name: database_name,
@@ -747,6 +748,7 @@ const useAppStore = create<AppState>()(
                 databases[database_name].children.push({
                   name: table_name,
                   type: table_type_mapped,
+                  total_bytes: total_bytes ?? 0,
                 });
               }
             });

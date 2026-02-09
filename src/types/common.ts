@@ -23,7 +23,7 @@ export interface Credential {
 export interface DatabaseInfo {
   name: string;
   type: string;
-  children: { name: string; type: string }[];
+  children: { name: string; type: string; total_bytes?: number }[];
 }
 
 export interface MultiQueryResult {

@@ -63,7 +63,7 @@ const PrivilegeCheckboxGroup: React.FC<PrivilegeCheckboxGroupProps> = ({
             >
               <Checkbox
                 id={`privilege-${privilege.id}`}
-                checked={isGranted}
+                checked={isGranted || isInherited}
                 onCheckedChange={() => onTogglePrivilege(privilege.id)}
                 className="mt-0.5"
               />

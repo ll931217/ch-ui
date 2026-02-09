@@ -1,8 +1,10 @@
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useEffect, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { GrantedPermission } from "./permissions";
 import PrivilegesPanel from "./PrivilegesPanel";
 import PresetToolbar from "./PresetToolbar";
+import { usePresetStore } from "./usePresetStore";
+import { useConnectionStore } from "@/store/connectionStore";
 
 // Stable empty array reference to avoid creating new array on each render
 const EMPTY_GRANTS: GrantedPermission[] = [];
@@ -18,6 +20,10 @@ const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
   databases = [],
   tables = new Map(),
 }) => {
+  const activeConnectionId = useConnectionStore((state) => state.activeConnectionId);
+  const { getPresets, getDefaultPreset } = usePresetStore();
+  const hasAutoApplied = useRef(false);
+
   // Memoize handler to avoid unnecessary re-renders
   const handleGrantsChange = useCallback((grants: GrantedPermission[]) => {
     form.setValue("privileges.grants", grants, { shouldDirty: true });
@@ -28,6 +34,27 @@ const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
   const currentGrants = useMemo(() => {
     return watchedGrants && watchedGrants.length > 0 ? watchedGrants : EMPTY_GRANTS;
   }, [watchedGrants]);
+
+  // Auto-apply default preset on mount if no grants exist
+  useEffect(() => {
+    if (hasAutoApplied.current || !activeConnectionId) {
+      return;
+    }
+
+    // Only auto-apply if there are no grants yet
+    if (!currentGrants || currentGrants.length === 0) {
+      const defaultPresetId = getDefaultPreset(activeConnectionId);
+      if (defaultPresetId) {
+        const presets = getPresets(activeConnectionId);
+        const defaultPreset = presets.find((p) => p.id === defaultPresetId);
+
+        if (defaultPreset) {
+          handleGrantsChange(defaultPreset.grants);
+          hasAutoApplied.current = true;
+        }
+      }
+    }
+  }, [activeConnectionId, currentGrants, getDefaultPreset, getPresets, handleGrantsChange]);
 
   return (
     <Card>

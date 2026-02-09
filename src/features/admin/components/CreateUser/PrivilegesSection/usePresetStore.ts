@@ -39,6 +39,7 @@ function createReadOnlyPreset(): Omit<PrivilegePreset, "id" | "createdAt" | "upd
 
 interface PresetState {
   presetsByConnection: Record<string, PrivilegePreset[]>;
+  defaultPresetIds: Record<string, string>; // connectionId -> presetId
 
   // Actions
   getPresets: (connectionId: string) => PrivilegePreset[];
@@ -51,16 +52,20 @@ interface PresetState {
   updatePreset: (
     connectionId: string,
     id: string,
-    grants: GrantedPermission[]
+    grants: GrantedPermission[],
+    name?: string
   ) => void;
   deletePreset: (connectionId: string, id: string) => void;
   importPresets: (connectionId: string, presets: PrivilegePreset[]) => void;
+  setDefaultPreset: (connectionId: string, presetId: string) => void;
+  getDefaultPreset: (connectionId: string) => string | undefined;
 }
 
 export const usePresetStore = create<PresetState>()(
   persist(
     (set, get) => ({
       presetsByConnection: {},
+      defaultPresetIds: {},
 
       getPresets: (connectionId) => {
         return get().presetsByConnection[connectionId] || [];
@@ -126,7 +131,7 @@ export const usePresetStore = create<PresetState>()(
         return newPreset;
       },
 
-      updatePreset: (connectionId, id, grants) => {
+      updatePreset: (connectionId, id, grants, name) => {
         set((state) => {
           const presets = state.presetsByConnection[connectionId] || [];
           const updatedPresets = presets.map((preset) =>
@@ -135,6 +140,7 @@ export const usePresetStore = create<PresetState>()(
                   ...preset,
                   grants: JSON.parse(JSON.stringify(grants)), // Deep clone
                   updatedAt: new Date().toISOString(),
+                  ...(name !== undefined && { name }),
                 }
               : preset
           );
@@ -153,11 +159,18 @@ export const usePresetStore = create<PresetState>()(
           const presets = state.presetsByConnection[connectionId] || [];
           const filteredPresets = presets.filter((preset) => preset.id !== id);
 
+          // Clear default if deleted preset was the default
+          const newDefaultPresetIds = { ...state.defaultPresetIds };
+          if (newDefaultPresetIds[connectionId] === id) {
+            delete newDefaultPresetIds[connectionId];
+          }
+
           return {
             presetsByConnection: {
               ...state.presetsByConnection,
               [connectionId]: filteredPresets,
             },
+            defaultPresetIds: newDefaultPresetIds,
           };
         });
       },
@@ -181,6 +194,19 @@ export const usePresetStore = create<PresetState>()(
             },
           };
         });
+      },
+
+      setDefaultPreset: (connectionId, presetId) => {
+        set((state) => ({
+          defaultPresetIds: {
+            ...state.defaultPresetIds,
+            [connectionId]: presetId,
+          },
+        }));
+      },
+
+      getDefaultPreset: (connectionId) => {
+        return get().defaultPresetIds[connectionId];
       },
     }),
     {

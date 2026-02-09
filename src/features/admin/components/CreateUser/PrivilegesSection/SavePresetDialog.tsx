@@ -1,4 +1,4 @@
-// Dialog for creating a new privilege preset
+// Dialog for saving a privilege preset (create new or update existing)
 
 import React, { useState, useEffect } from "react";
 import {
@@ -13,29 +13,36 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
-interface CreatePresetDialogProps {
+interface SavePresetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (name: string) => void;
   existingNames: string[];
+  defaultName?: string; // Pre-fill for edit mode
+  isNewPreset?: boolean; // Show "Create" vs "Save" title
 }
 
-const CreatePresetDialog: React.FC<CreatePresetDialogProps> = ({
+const SavePresetDialog: React.FC<SavePresetDialogProps> = ({
   open,
   onOpenChange,
   onSave,
   existingNames,
+  defaultName = "",
+  isNewPreset = true,
 }) => {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
 
-  // Reset state when dialog opens/closes
+  // Initialize with defaultName when dialog opens
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      setName(defaultName);
+      setError("");
+    } else {
       setName("");
       setError("");
     }
-  }, [open]);
+  }, [open, defaultName]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,9 +54,14 @@ const CreatePresetDialog: React.FC<CreatePresetDialogProps> = ({
       return;
     }
 
-    // Validate unique name (case-insensitive)
+    // Validate unique name (case-insensitive), except for the current name when editing
     const normalizedName = trimmedName.toLowerCase();
-    if (existingNames.some((n) => n.toLowerCase() === normalizedName)) {
+    const normalizedDefault = defaultName.toLowerCase();
+    const isDuplicateName = existingNames.some(
+      (n) => n.toLowerCase() === normalizedName && normalizedName !== normalizedDefault
+    );
+
+    if (isDuplicateName) {
       setError("A preset with this name already exists");
       return;
     }
@@ -62,10 +74,13 @@ const CreatePresetDialog: React.FC<CreatePresetDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create Preset</DialogTitle>
+          <DialogTitle>
+            {isNewPreset ? "Create New Preset" : "Save Preset"}
+          </DialogTitle>
           <DialogDescription>
-            Save the current privilege configuration as a preset. You can load
-            it later to quickly apply the same privileges.
+            {isNewPreset
+              ? "Save the current privilege configuration as a preset. You can load it later to quickly apply the same privileges."
+              : "Save changes to the current preset or rename it."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -93,7 +108,9 @@ const CreatePresetDialog: React.FC<CreatePresetDialogProps> = ({
             >
               Cancel
             </Button>
-            <Button type="submit">Create Preset</Button>
+            <Button type="submit">
+              {isNewPreset ? "Create Preset" : "Save Changes"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -101,4 +118,4 @@ const CreatePresetDialog: React.FC<CreatePresetDialogProps> = ({
   );
 };
 
-export default CreatePresetDialog;
+export default SavePresetDialog;

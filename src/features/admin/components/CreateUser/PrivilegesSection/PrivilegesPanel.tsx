@@ -31,7 +31,7 @@ const PrivilegesPanel: React.FC<PrivilegesPanelProps> = ({
   } = usePrivilegesPanel({ databases, tables, grants, onChange });
 
   return (
-    <div className="grid grid-cols-[250px_250px_1fr] h-125 border rounded-lg overflow-hidden">
+    <div className="grid grid-cols-[250px_250px_1fr] h-125 border-2 rounded-lg overflow-hidden">
       {/* Left Panel: Databases */}
       <DatabaseList
         databases={databases}
@@ -51,7 +51,7 @@ const PrivilegesPanel: React.FC<PrivilegesPanelProps> = ({
 
       {/* Right Panel: Privileges */}
       <div className="flex flex-col h-full min-h-0">
-        <div className="px-4 py-3 border-b bg-muted/50">
+        <div className="px-4 py-3 border-b-2 bg-muted/50">
           <h3 className="font-semibold text-sm">Privileges</h3>
           <p className="text-xs text-muted-foreground mt-1">
             Scope:{" "}

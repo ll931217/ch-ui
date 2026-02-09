@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import UserTable from "@/features/admin/components/UserManagement/index";
+import RoleManagement from "@/features/admin/components/RoleManagement";
 import { InfoIcon, ShieldCheck, FileText } from "lucide-react";
 import InfoDialog from "@/components/common/InfoDialog";
 import AuditLogViewer from "@/features/admin/components/PermissionsConfig/AuditLogViewer";
@@ -88,7 +89,18 @@ export default function Admin() {
                   } hover:bg-muted/50`}
                   onClick={() => setActiveSection("users")}
                 >
-                  Users & Roles
+                  Users
+                </Button>
+              )}
+              {canViewUsersRoles && (
+                <Button
+                  variant="ghost"
+                  className={`w-full justify-start ${
+                    activeSection === "roles" ? "" : "text-gray-400"
+                  } hover:bg-muted/50`}
+                  onClick={() => setActiveSection("roles")}
+                >
+                  Roles
                 </Button>
               )}
               {canViewUsersRoles && (
@@ -125,6 +137,12 @@ export default function Admin() {
                     onAddChange={addPendingChange}
                     refreshTrigger={refreshTrigger}
                   />
+                </div>
+              )}
+
+              {activeSection === "roles" && (
+                <div>
+                  <RoleManagement onAddChange={addPendingChange} />
                 </div>
               )}
 

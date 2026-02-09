@@ -5,6 +5,7 @@ import TableList from "./TableList";
 import PrivilegeCheckboxGroup from "./PrivilegeCheckboxGroup";
 import { usePrivilegesPanel } from "./usePrivilegesPanel";
 import { GrantedPermission } from "./permissions";
+import { ExtendedGrantedPermission } from "./types";
 import { PRIVILEGE_GROUPS } from "./privilegeDefinitions";
 
 interface PrivilegesPanelProps {
@@ -12,6 +13,10 @@ interface PrivilegesPanelProps {
   tables: Map<string, string[]>;
   grants: GrantedPermission[];
   onChange: (grants: GrantedPermission[]) => void;
+  /** Extended grants with role inheritance information (optional) */
+  effectiveGrants?: ExtendedGrantedPermission[];
+  /** Whether to show role source badges */
+  showRoleSource?: boolean;
 }
 
 const PrivilegesPanel: React.FC<PrivilegesPanelProps> = ({
@@ -19,6 +24,8 @@ const PrivilegesPanel: React.FC<PrivilegesPanelProps> = ({
   tables,
   grants,
   onChange,
+  effectiveGrants,
+  showRoleSource = false,
 }) => {
   const {
     state,
@@ -26,9 +33,12 @@ const PrivilegesPanel: React.FC<PrivilegesPanelProps> = ({
     availableTables,
     isPrivilegeGranted,
     isPrivilegeInherited,
+    isPrivilegeFromRole,
+    getPrivilegeRoleSource,
+    isPrivilegeEditable,
     togglePrivilege,
     setAllPrivileges,
-  } = usePrivilegesPanel({ databases, tables, grants, onChange });
+  } = usePrivilegesPanel({ databases, tables, grants, onChange, effectiveGrants });
 
   return (
     <div className="grid grid-cols-[250px_250px_1fr] h-125 border-2 rounded-lg overflow-hidden">
@@ -84,6 +94,9 @@ const PrivilegesPanel: React.FC<PrivilegesPanelProps> = ({
                     false,
                   )
                 }
+                isPrivilegeFromRole={showRoleSource ? isPrivilegeFromRole : undefined}
+                getPrivilegeRoleSource={showRoleSource ? getPrivilegeRoleSource : undefined}
+                isPrivilegeEditable={showRoleSource ? isPrivilegeEditable : undefined}
               />
             ))}
           </div>

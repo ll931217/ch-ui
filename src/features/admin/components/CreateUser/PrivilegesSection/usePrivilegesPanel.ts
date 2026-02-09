@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { GrantedPermission, PermissionScope } from "./permissions";
+import { ExtendedGrantedPermission } from "./types";
 import { findPrivilegeById } from "./privilegeDefinitions";
 
 interface UsePrivilegesPanelProps {
@@ -7,6 +8,8 @@ interface UsePrivilegesPanelProps {
   tables: Map<string, string[]>;
   grants: GrantedPermission[];
   onChange: (grants: GrantedPermission[]) => void;
+  /** Optional extended grants with role inheritance information */
+  effectiveGrants?: ExtendedGrantedPermission[];
 }
 
 export interface PrivilegesPanelState {
@@ -19,6 +22,7 @@ export const usePrivilegesPanel = ({
   tables,
   grants,
   onChange,
+  effectiveGrants,
 }: UsePrivilegesPanelProps) => {
   const [state, setState] = useState<PrivilegesPanelState>({
     selectedDatabase: null,
@@ -177,6 +181,74 @@ export const usePrivilegesPanel = ({
     [grants, currentScope, isPrivilegeGranted, onChange]
   );
 
+  // Check if a privilege is inherited from a role (not scope-based inheritance)
+  const isPrivilegeFromRole = useCallback(
+    (privilegeId: string): boolean => {
+      if (!effectiveGrants) return false;
+
+      return effectiveGrants.some((grant) => {
+        if (grant.permissionId !== privilegeId || grant.source !== "role") return false;
+
+        // Check if grant matches current scope
+        if (currentScope.type === "global") {
+          return grant.scope.type === "global";
+        } else if (currentScope.type === "database") {
+          return (
+            grant.scope.type === "database" &&
+            grant.scope.database === currentScope.database
+          );
+        } else if (currentScope.type === "table") {
+          return (
+            grant.scope.type === "table" &&
+            grant.scope.database === currentScope.database &&
+            grant.scope.table === currentScope.table
+          );
+        }
+        return false;
+      });
+    },
+    [effectiveGrants, currentScope]
+  );
+
+  // Get the source role for a privilege (if it's inherited from a role)
+  const getPrivilegeRoleSource = useCallback(
+    (privilegeId: string): string | null => {
+      if (!effectiveGrants) return null;
+
+      const roleGrant = effectiveGrants.find((grant) => {
+        if (grant.permissionId !== privilegeId || grant.source !== "role") return false;
+
+        // Check if grant matches current scope
+        if (currentScope.type === "global") {
+          return grant.scope.type === "global";
+        } else if (currentScope.type === "database") {
+          return (
+            grant.scope.type === "database" &&
+            grant.scope.database === currentScope.database
+          );
+        } else if (currentScope.type === "table") {
+          return (
+            grant.scope.type === "table" &&
+            grant.scope.database === currentScope.database &&
+            grant.scope.table === currentScope.table
+          );
+        }
+        return false;
+      });
+
+      return roleGrant?.sourceRole || null;
+    },
+    [effectiveGrants, currentScope]
+  );
+
+  // Check if a privilege is editable (not inherited from a role)
+  const isPrivilegeEditable = useCallback(
+    (privilegeId: string): boolean => {
+      return !isPrivilegeFromRole(privilegeId);
+    },
+    [isPrivilegeFromRole]
+  );
+
   return {
     state,
     setState,
@@ -184,6 +256,9 @@ export const usePrivilegesPanel = ({
     currentScope,
     isPrivilegeGranted,
     isPrivilegeInherited,
+    isPrivilegeFromRole,
+    getPrivilegeRoleSource,
+    isPrivilegeEditable,
     togglePrivilege,
     setAllPrivileges,
   };

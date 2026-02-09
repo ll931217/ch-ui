@@ -15,6 +15,7 @@ import SettingsSection from "./SettingsSection";
 import useMetadata from "./hooks/useMetadata";
 import { useUserData } from "./hooks/useUserData";
 import { useGrants } from "../PermissionsConfig/hooks/useGrants";
+import { useEffectiveGrants } from "../PermissionsConfig/hooks/useEffectiveGrants";
 import { useSqlGenerator } from "../PermissionsConfig/hooks/useSqlGenerator";
 import {
   GrantedPermission,
@@ -63,13 +64,18 @@ const EditUser: React.FC<EditUserProps> = ({
 
   const metadata = useMetadata(true);
   const { userInfo, loading: userLoading } = useUserData({ username });
-  const { grants, loading: grantsLoading } = useGrants({ userName: username });
+  const {
+    directGrants,
+    assignedRoles,
+    effectiveGrants,
+    loading: grantsLoading,
+  } = useEffectiveGrants(username);
   const { generateAlterUser, generateGrant, generateRevoke } =
     useSqlGenerator();
 
   // Populate form when user data is loaded
   useEffect(() => {
-    if (userInfo && grants) {
+    if (userInfo && directGrants) {
       // Determine host type and value
       let hostType = "ANY";
       let hostValue = "";
@@ -105,11 +111,11 @@ const EditUser: React.FC<EditUserProps> = ({
           readonly: userInfo.settings?.readonly || false,
         },
         privileges: {
-          grants,
+          grants: directGrants,
         },
       });
     }
-  }, [userInfo, grants]);
+  }, [userInfo, directGrants]);
 
   const onSubmit = async (data: any) => {
     if (!username) return;
@@ -347,6 +353,9 @@ const EditUser: React.FC<EditUserProps> = ({
                   form={form}
                   databases={metadata.databases}
                   tables={metadata.tables}
+                  effectiveGrants={effectiveGrants}
+                  assignedRoles={assignedRoles}
+                  showRoleSource={true}
                 />
               </TabsContent>
             </Tabs>

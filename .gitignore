@@ -33,3 +33,9 @@ dist-ssr
 
 # bv (beads viewer) local config and caches
 .bv/
+
+# MCP server config (environment-specific)
+.mcp.json
+
+# VoiceTree generated docs and cache
+voicetree-*/

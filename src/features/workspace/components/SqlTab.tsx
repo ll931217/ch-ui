@@ -578,8 +578,12 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       return gridContent;
     }
 
+    // When main layout is horizontal, show sidebar at bottom (vertical orientation)
+    // When main layout is vertical, show sidebar on right (horizontal orientation)
+    const sidebarOrientation = orientation === 'horizontal' ? 'vertical' : 'horizontal';
+
     return (
-      <ResizablePanelGroup orientation="horizontal" className="h-full w-full">
+      <ResizablePanelGroup orientation={sidebarOrientation} className="h-full w-full">
         <ResizablePanel defaultSize={65} minSize={20}>
           {gridContent}
         </ResizablePanel>

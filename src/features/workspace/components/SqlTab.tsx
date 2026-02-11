@@ -836,7 +836,10 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
             onFocusChange={setIsEditorFocused}
           />
         </ResizablePanel>
-        <ResizableHandle className="w-full h-1" withHandle />
+        <ResizableHandle
+          className={orientation === 'horizontal' ? 'w-1 h-full' : 'w-full h-1'}
+          withHandle
+        />
         <ResizablePanel
           id="sql-results"
           minSize={100}

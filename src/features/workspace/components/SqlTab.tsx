@@ -587,7 +587,10 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
         <ResizablePanel defaultSize={65} minSize={20}>
           {gridContent}
         </ResizablePanel>
-        <ResizableHandle withHandle />
+        <ResizableHandle
+          className={sidebarOrientation === 'horizontal' ? 'w-1 h-full' : 'w-full h-1'}
+          withHandle
+        />
         <ResizablePanel defaultSize={35} minSize={20} maxSize={70}>
           <ValueSidebar
             fieldName={selectedCell.fieldName}

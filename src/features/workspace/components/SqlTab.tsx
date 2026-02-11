@@ -824,8 +824,8 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       >
         <ResizablePanel
           id="sql-editor"
-          defaultSize={300}
-          minSize={200}
+          defaultSize={orientation === 'horizontal' ? 50 : 300}
+          minSize={orientation === 'horizontal' ? 20 : 200}
           collapsible
           collapsedSize={0}
         >

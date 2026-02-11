@@ -117,7 +117,9 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const [isTransposed, setIsTransposed] = useState(false);
   const [isEditorFocused, setIsEditorFocused] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('vertical');
+  const [orientation, setOrientation] = useState<"horizontal" | "vertical">(
+    "vertical",
+  );
   const [selectedCell, setSelectedCell] = useState<{
     fieldName: string;
     rowIndex: number;
@@ -322,7 +324,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 
   // Handle orientation toggle
   const toggleOrientation = useCallback(() => {
-    setOrientation((prev) => (prev === 'vertical' ? 'horizontal' : 'vertical'));
+    setOrientation((prev) => (prev === "vertical" ? "horizontal" : "vertical"));
   }, []);
 
   // Handle cell clicked for value sidebar
@@ -385,21 +387,32 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   // Load saved orientation preference from localStorage on mount
   useEffect(() => {
     try {
-      const savedOrientation = localStorage.getItem('sql-editor-layout-orientation');
-      if (savedOrientation === 'horizontal' || savedOrientation === 'vertical') {
+      const savedOrientation = localStorage.getItem(
+        "sql-editor-layout-orientation",
+      );
+      if (
+        savedOrientation === "horizontal" ||
+        savedOrientation === "vertical"
+      ) {
         setOrientation(savedOrientation);
       }
     } catch (error) {
-      console.error('Failed to load orientation preference from localStorage:', error);
+      console.error(
+        "Failed to load orientation preference from localStorage:",
+        error,
+      );
     }
   }, []);
 
   // Save orientation preference to localStorage when it changes
   useEffect(() => {
     try {
-      localStorage.setItem('sql-editor-layout-orientation', orientation);
+      localStorage.setItem("sql-editor-layout-orientation", orientation);
     } catch (error) {
-      console.error('Failed to save orientation preference to localStorage:', error);
+      console.error(
+        "Failed to save orientation preference to localStorage:",
+        error,
+      );
     }
   }, [orientation]);
 
@@ -580,18 +593,24 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 
     // When main layout is horizontal, show sidebar at bottom (vertical orientation)
     // When main layout is vertical, show sidebar on right (horizontal orientation)
-    const sidebarOrientation = orientation === 'horizontal' ? 'vertical' : 'horizontal';
+    const sidebarOrientation =
+      orientation === "horizontal" ? "vertical" : "horizontal";
 
     return (
-      <ResizablePanelGroup orientation={sidebarOrientation} className="h-full w-full">
+      <ResizablePanelGroup
+        orientation={sidebarOrientation}
+        className="h-full w-full"
+      >
         <ResizablePanel defaultSize={65} minSize={20}>
           {gridContent}
         </ResizablePanel>
         <ResizableHandle
-          className={sidebarOrientation === 'horizontal' ? 'w-1 h-full' : 'w-full h-1'}
+          className={
+            sidebarOrientation === "horizontal" ? "w-1 h-full" : "w-full h-1"
+          }
           withHandle
         />
-        <ResizablePanel defaultSize={35} minSize={20} maxSize={70}>
+        <ResizablePanel defaultSize={35} minSize={20}>
           <ValueSidebar
             fieldName={selectedCell.fieldName}
             rowIndex={selectedCell.rowIndex}
@@ -831,8 +850,8 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       >
         <ResizablePanel
           id="sql-editor"
-          defaultSize={orientation === 'horizontal' ? 50 : 300}
-          minSize={orientation === 'horizontal' ? 20 : 200}
+          defaultSize={orientation === "horizontal" ? 50 : 300}
+          minSize={orientation === "horizontal" ? 20 : 200}
           collapsible
           collapsedSize={0}
         >
@@ -844,7 +863,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
           />
         </ResizablePanel>
         <ResizableHandle
-          className={orientation === 'horizontal' ? 'w-1 h-full' : 'w-full h-1'}
+          className={orientation === "horizontal" ? "w-1 h-full" : "w-full h-1"}
           withHandle
         />
         <ResizablePanel

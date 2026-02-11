@@ -15,6 +15,8 @@ import {
   User,
   Lock,
   Cog,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -31,6 +33,8 @@ import {
 import { toast } from "sonner";
 import { useConnectionStore } from "@/store/connectionStore";
 import type { SavedConnection } from "@/lib/db";
+import { createClient } from "@clickhouse/client-web";
+import { ClickHouseError } from "@/store/index";
 
 const isValidClickHouseUrl = (url: string): boolean => {
   if (!url) return false;
@@ -79,6 +83,15 @@ export default function ConnectionForm({
   const [showPassword, setShowPassword] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [testStatus, setTestStatus] = useState<{
+    loading: boolean;
+    success: boolean | null;
+    message: string;
+  }>({
+    loading: false,
+    success: null,
+    message: "",
+  });
 
   const { saveConnection, updateConnectionById } = useConnectionStore();
 
@@ -103,6 +116,60 @@ export default function ConnectionForm({
       setShowAdvanced(true);
     }
   }, [connection]);
+
+  const handleTestConnection = async () => {
+    setTestStatus({ loading: true, success: null, message: "" });
+
+    try {
+      const formValues = form.getValues();
+
+      let baseUrl = formValues.url.replace(/\/+$/, "");
+      const pathname = formValues.useAdvanced && formValues.customPath
+        ? formValues.customPath
+        : undefined;
+
+      const client = createClient({
+        url: baseUrl,
+        pathname,
+        username: formValues.username,
+        password: formValues.password || "",
+        request_timeout: formValues.requestTimeout || 30000,
+      });
+
+      await client.ping();
+
+      const versionResult = await client.query({
+        query: "SELECT version()",
+      });
+      const versionData = (await versionResult.json()) as {
+        data: { "version()": string }[];
+      };
+      const version = versionData.data[0]["version()"];
+
+      setTestStatus({
+        loading: false,
+        success: true,
+        message: `Connected successfully! Server version: ${version}`,
+      });
+      toast.success(`Connection successful! Server version: ${version}`);
+    } catch (error: any) {
+      const enhancedError = ClickHouseError.fromError(
+        error,
+        "Failed to connect to ClickHouse server"
+      );
+
+      const errorMessage = `${enhancedError.message}\n\nTroubleshooting tips:\n${enhancedError.troubleshootingTips.join("\n")}`;
+
+      setTestStatus({
+        loading: false,
+        success: false,
+        message: errorMessage,
+      });
+      toast.error(`Connection failed: ${enhancedError.message}`, {
+        description: "Check the form for troubleshooting tips.",
+      });
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -390,29 +457,67 @@ export default function ConnectionForm({
           </div>
         )}
 
-        <div className="flex justify-end gap-2 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            <X className="h-4 w-4 mr-2" />
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Connection
-              </>
-            )}
-          </Button>
+        <div className="space-y-3 pt-4">
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTestConnection}
+              disabled={!form.formState.isValid || testStatus.loading}
+            >
+              {testStatus.loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Testing...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Test Connection
+                </>
+              )}
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Connection
+                </>
+              )}
+            </Button>
+          </div>
+
+          {testStatus.success === true && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900">
+              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 text-sm text-green-700 dark:text-green-400">
+                {testStatus.message}
+              </div>
+            </div>
+          )}
+
+          {testStatus.success === false && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+              <XCircle className="h-5 w-5 text-red-600 dark:text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 text-sm text-red-700 dark:text-red-400 whitespace-pre-line">
+                {testStatus.message}
+              </div>
+            </div>
+          )}
         </div>
       </form>
     </Form>

@@ -1,14 +1,26 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
 import { toast } from "sonner";
-import { Loader2, FileX2, RefreshCw, AlertTriangle, Columns, PanelRight } from "lucide-react";
+import {
+  Loader2,
+  FileX2,
+  RefreshCw,
+  AlertTriangle,
+  Columns,
+  PanelRight,
+  Columns2,
+  Rows2,
+} from "lucide-react";
 import { AgGridReact } from "ag-grid-react";
 import {
   ColDef,
   AllCommunityModule,
-  GridApi,
   ColumnPinnedType,
-  CellContextMenuEvent,
-  RowSelectionOptions,
 } from "ag-grid-community";
 import { AgGridWrapper } from "@/components/common/AgGridWrapper";
 import {
@@ -26,6 +38,7 @@ import {
 } from "@/lib/formatUtils";
 import { transposeGridData } from "@/lib/transposeGrid";
 import ValueSidebar from "./ValueSidebar";
+import { ResultsPagination } from "./ResultsPagination";
 
 // Component imports
 import SQLEditor from "@/features/workspace/editor/SqlEditor";
@@ -104,6 +117,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const [isTransposed, setIsTransposed] = useState(false);
   const [isEditorFocused, setIsEditorFocused] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('vertical');
   const [selectedCell, setSelectedCell] = useState<{
     fieldName: string;
     rowIndex: number;
@@ -306,19 +320,27 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     }
   }, [isTransposed]);
 
+  // Handle orientation toggle
+  const toggleOrientation = useCallback(() => {
+    setOrientation((prev) => (prev === 'vertical' ? 'horizontal' : 'vertical'));
+  }, []);
+
   // Handle cell clicked for value sidebar
-  const handleCellClicked = useCallback((event: any) => {
-    if (!isSidebarOpen) return;
+  const handleCellClicked = useCallback(
+    (event: any) => {
+      if (!isSidebarOpen) return;
 
-    const { colDef, rowIndex, value } = event;
-    const fieldName = colDef.field || colDef.headerName || "Unknown";
+      const { colDef, rowIndex, value } = event;
+      const fieldName = colDef.field || colDef.headerName || "Unknown";
 
-    setSelectedCell({
-      fieldName,
-      rowIndex,
-      value,
-    });
-  }, [isSidebarOpen]);
+      setSelectedCell({
+        fieldName,
+        rowIndex,
+        value,
+      });
+    },
+    [isSidebarOpen],
+  );
 
   // Handle result index change for multi-query results
   const handleResultIndexChange = useCallback(
@@ -360,9 +382,34 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     handleResetColumns,
   ]);
 
+  // Load saved orientation preference from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedOrientation = localStorage.getItem('sql-editor-layout-orientation');
+      if (savedOrientation === 'horizontal' || savedOrientation === 'vertical') {
+        setOrientation(savedOrientation);
+      }
+    } catch (error) {
+      console.error('Failed to load orientation preference from localStorage:', error);
+    }
+  }, []);
+
+  // Save orientation preference to localStorage when it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('sql-editor-layout-orientation', orientation);
+    } catch (error) {
+      console.error('Failed to save orientation preference to localStorage:', error);
+    }
+  }, [orientation]);
+
   // Handle transpose data transformation
   useEffect(() => {
-    if (isTransposed && tab?.result?.data?.length && tab?.result?.meta?.length) {
+    if (
+      isTransposed &&
+      tab?.result?.data?.length &&
+      tab?.result?.meta?.length
+    ) {
       const gridApi = gridRef.current?.api;
       let rowsToTranspose: IRow[] = [];
 
@@ -397,7 +444,11 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
         setColumnDefs(transposedCols);
         setRowData(transposedData);
       }
-    } else if (!isTransposed && tab?.result?.data?.length && tab?.result?.meta?.length) {
+    } else if (
+      !isTransposed &&
+      tab?.result?.data?.length &&
+      tab?.result?.meta?.length
+    ) {
       // Return to normal view - trigger re-processing
       const dataColDefs: ColDef<IRow>[] = tab.result.meta.map((col: any) => {
         const colName = col.name;
@@ -417,7 +468,14 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       setRowData(tab.result.data);
       setColumnDefs(dataColDefs);
     }
-  }, [isTransposed, tab?.result?.data, tab?.result?.meta, handlePinColumn, handleAutoSizeColumn, handleResetColumns]);
+  }, [
+    isTransposed,
+    tab?.result?.data,
+    tab?.result?.meta,
+    handlePinColumn,
+    handleAutoSizeColumn,
+    handleResetColumns,
+  ]);
 
   // Keyboard event handlers
   useEffect(() => {
@@ -490,23 +548,29 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 
     const gridContent = (
       <div className="h-full flex flex-col">
-        <ContextMenu>
-          <ContextMenuTrigger asChild>
-            <div className="flex-1 relative">
-              <AgGridWrapper ref={gridRef} {...gridProps} />
-            </div>
-          </ContextMenuTrigger>
-          <ContextMenuContent>
-            {getAvailableFormats().map((format) => (
-              <ContextMenuItem
-                key={format}
-                onClick={() => handleCopyFormat(format)}
-              >
-                Copy as {getFormatDisplayName(format)}
-              </ContextMenuItem>
-            ))}
-          </ContextMenuContent>
-        </ContextMenu>
+        <div className="flex-1 min-h-0">
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <div className="h-full relative">
+                <AgGridWrapper ref={gridRef} {...gridProps} />
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              {getAvailableFormats().map((format) => (
+                <ContextMenuItem
+                  key={format}
+                  onClick={() => handleCopyFormat(format)}
+                >
+                  Copy as {getFormatDisplayName(format)}
+                </ContextMenuItem>
+              ))}
+            </ContextMenuContent>
+          </ContextMenu>
+        </div>
+        <ResultsPagination
+          statistics={tab?.result?.statistics ?? null}
+          gridRef={gridRef}
+        />
       </div>
     );
 
@@ -665,6 +729,22 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
 
             {hasData && activeTab === "results" && (
               <Button
+                variant={orientation !== "vertical" ? "default" : "ghost"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={toggleOrientation}
+                title={`Switch to ${orientation === "vertical" ? "horizontal" : "vertical"} layout`}
+              >
+                {orientation === "vertical" ? (
+                  <Columns2 className="h-4 w-4" />
+                ) : (
+                  <Rows2 className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+
+            {hasData && activeTab === "results" && (
+              <Button
                 variant={isSidebarOpen ? "default" : "ghost"}
                 size="sm"
                 className="h-6 w-6 p-0"
@@ -740,7 +820,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
         id="sql-tab"
         defaultLayout={defaultLayout}
         onLayoutChanged={onLayoutChanged}
-        orientation="vertical"
+        orientation={orientation}
       >
         <ResizablePanel
           id="sql-editor"

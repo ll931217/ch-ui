@@ -39,3 +39,11 @@ dist-ssr
 
 # VoiceTree generated docs and cache
 voicetree-*/
+.todos/
+
+# Playwright E2E test artifacts
+playwright-report/
+playwright-results.xml
+playwright-results.json
+test-results/
+playwright/.cache/

@@ -52,3 +52,8 @@ vi.mock("monaco-editor", () => ({
     setMonarchTokensProvider: vi.fn(),
   },
 }));
+
+// Mock monacoConfig
+vi.mock("@/features/workspace/editor/monacoConfig", () => ({
+  retryInitialization: vi.fn(),
+}));

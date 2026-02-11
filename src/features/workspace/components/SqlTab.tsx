@@ -118,7 +118,25 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   const [isEditorFocused, setIsEditorFocused] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [orientation, setOrientation] = useState<"horizontal" | "vertical">(
-    "vertical",
+    () => {
+      try {
+        const savedOrientation = localStorage.getItem(
+          "sql-editor-layout-orientation",
+        );
+        if (
+          savedOrientation === "horizontal" ||
+          savedOrientation === "vertical"
+        ) {
+          return savedOrientation;
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load orientation preference from localStorage:",
+          error,
+        );
+      }
+      return "vertical";
+    },
   );
   const [selectedCell, setSelectedCell] = useState<{
     fieldName: string;
@@ -383,26 +401,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     handleAutoSizeColumn,
     handleResetColumns,
   ]);
-
-  // Load saved orientation preference from localStorage on mount
-  useEffect(() => {
-    try {
-      const savedOrientation = localStorage.getItem(
-        "sql-editor-layout-orientation",
-      );
-      if (
-        savedOrientation === "horizontal" ||
-        savedOrientation === "vertical"
-      ) {
-        setOrientation(savedOrientation);
-      }
-    } catch (error) {
-      console.error(
-        "Failed to load orientation preference from localStorage:",
-        error,
-      );
-    }
-  }, []);
 
   // Save orientation preference to localStorage when it changes
   useEffect(() => {

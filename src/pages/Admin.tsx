@@ -142,7 +142,7 @@ export default function Admin() {
 
               {activeSection === "roles" && (
                 <div>
-                  <RoleManagement onAddChange={addPendingChange} />
+                  <RoleManagement onAddChange={addPendingChange} refreshTrigger={refreshTrigger} />
                 </div>
               )}
 

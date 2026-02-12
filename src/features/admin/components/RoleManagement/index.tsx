@@ -10,10 +10,11 @@ import { PendingChange } from "../PermissionsConfig/types";
 
 interface RoleManagementProps {
   onAddChange: (change: Omit<PendingChange, "id" | "createdAt">) => void;
+  refreshTrigger?: number;
 }
 
-const RoleManagement: React.FC<RoleManagementProps> = ({ onAddChange }) => {
-  const { roles, loading, error, refetch } = useRoles();
+const RoleManagement: React.FC<RoleManagementProps> = ({ onAddChange, refreshTrigger }) => {
+  const { roles, loading, error, refetch } = useRoles({ refreshTrigger });
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -34,7 +35,8 @@ const RoleManagement: React.FC<RoleManagementProps> = ({ onAddChange }) => {
     setIsEditorOpen(false);
     setSelectedRole(null);
     setIsCreating(false);
-    refetch();
+    // Note: No refetch() here - table will refresh automatically when
+    // pending changes are executed via the refreshTrigger prop
   };
 
   if (loading) {

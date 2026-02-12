@@ -8,6 +8,11 @@ interface SystemRoleRow {
   storage: string | null;
 }
 
+interface UseRolesOptions {
+  /** Optional external trigger to force refetch */
+  refreshTrigger?: number;
+}
+
 interface UseRolesResult {
   /** All roles in the system */
   roles: Role[];
@@ -32,9 +37,11 @@ interface UseRolesResult {
  * Hook to fetch and manage roles from system.roles.
  * Provides methods to create and drop roles.
  *
+ * @param options - Options for the hook
  * @returns All system roles and management methods
  */
-export function useRoles(): UseRolesResult {
+export function useRoles(options: UseRolesOptions = {}): UseRolesResult {
+  const { refreshTrigger: externalRefreshTrigger } = options;
   const { clickHouseClient } = useAppStore();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
@@ -87,7 +94,7 @@ export function useRoles(): UseRolesResult {
     }
 
     fetchRoles();
-  }, [clickHouseClient, refetchTrigger]);
+  }, [clickHouseClient, refetchTrigger, externalRefreshTrigger]);
 
   const createRole = useCallback(
     async (roleName: string) => {

@@ -11,7 +11,7 @@ import {
   MultiQueryResult,
 } from "@/types/common";
 import { createClient } from "@clickhouse/client-web";
-import { isCreateOrInsert, isExplainQuery } from "@/helpers/sqlUtils";
+import { isCreateOrInsert, isExplainQuery, isJsonExplain } from "@/helpers/sqlUtils";
 import { ExplainParser } from "@/features/workspace/explain/parser";
 import { OverflowMode } from "@clickhouse/client-common/dist/settings";
 import { toast } from "sonner";
@@ -403,23 +403,51 @@ const useAppStore = create<AppState>()(
             const result = await clickHouseClient.query({
               query: trimmedQuery,
             });
-            const jsonResult = (await result.json()) as any;
-            const processedResult: QueryResult = {
-              meta: jsonResult.meta || [],
-              data: jsonResult.data || [],
-              statistics: jsonResult.statistics || {
-                elapsed: 0,
-                rows_read: 0,
-                bytes_read: 0,
-              },
-              rows: jsonResult.rows || 0,
-              error: null,
-            };
 
-            // Check if EXPLAIN query and parse result
-            if (isExplainQuery(trimmedQuery)) {
-              const explainResult = ExplainParser.parse(trimmedQuery, jsonResult);
+            let processedResult: QueryResult;
+
+            // EXPLAIN queries (without json=1) return TabSeparated text,
+            // not JSON — calling .json() on them throws a parse error.
+            if (isExplainQuery(trimmedQuery) && !isJsonExplain(trimmedQuery)) {
+              const textResult = await result.text();
+              const rows = textResult
+                .split("\n")
+                .filter((line) => line.length > 0)
+                .map((line) => ({ explain: line }));
+              const syntheticJson = {
+                meta: [{ name: "explain", type: "String" }],
+                data: rows,
+                rows: rows.length,
+                statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
+              };
+              processedResult = {
+                meta: syntheticJson.meta,
+                data: syntheticJson.data,
+                statistics: syntheticJson.statistics,
+                rows: syntheticJson.rows,
+                error: null,
+              };
+              const explainResult = ExplainParser.parse(trimmedQuery, syntheticJson);
               processedResult.explainResult = explainResult;
+            } else {
+              const jsonResult = (await result.json()) as any;
+              processedResult = {
+                meta: jsonResult.meta || [],
+                data: jsonResult.data || [],
+                statistics: jsonResult.statistics || {
+                  elapsed: 0,
+                  rows_read: 0,
+                  bytes_read: 0,
+                },
+                rows: jsonResult.rows || 0,
+                error: null,
+              };
+
+              // Check if JSON-format EXPLAIN query and parse result
+              if (isExplainQuery(trimmedQuery)) {
+                const explainResult = ExplainParser.parse(trimmedQuery, jsonResult);
+                processedResult.explainResult = explainResult;
+              }
             }
 
             if (tabId)
@@ -492,6 +520,30 @@ const useAppStore = create<AppState>()(
                   rows: 0,
                   error: null,
                 };
+              } else if (isExplainQuery(trimmedQuery) && !isJsonExplain(trimmedQuery)) {
+                const result = await clickHouseClient.query({
+                  query: trimmedQuery,
+                });
+                const textResult = await result.text();
+                const rows = textResult
+                  .split("\n")
+                  .filter((line) => line.length > 0)
+                  .map((line) => ({ explain: line }));
+                const syntheticJson = {
+                  meta: [{ name: "explain", type: "String" }],
+                  data: rows,
+                  rows: rows.length,
+                  statistics: { elapsed: 0, rows_read: 0, bytes_read: 0 },
+                };
+                queryResult = {
+                  meta: syntheticJson.meta,
+                  data: syntheticJson.data,
+                  statistics: syntheticJson.statistics,
+                  rows: syntheticJson.rows,
+                  error: null,
+                };
+                const explainResult = ExplainParser.parse(trimmedQuery, syntheticJson);
+                queryResult.explainResult = explainResult;
               } else {
                 const result = await clickHouseClient.query({
                   query: trimmedQuery,

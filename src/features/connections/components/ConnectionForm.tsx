@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { useConnectionStore } from "@/store/connectionStore";
 import type { SavedConnection } from "@/lib/db";
 import { createClient } from "@clickhouse/client-web";
-import { ClickHouseError } from "@/store/index";
+import useAppStore, { ClickHouseError } from "@/store/index";
 
 const isValidClickHouseUrl = (url: string): boolean => {
   if (!url) return false;
@@ -56,7 +56,7 @@ const formSchema = z.object({
   password: z.string().optional(),
   useAdvanced: z.boolean().optional(),
   customPath: z.string().optional(),
-  requestTimeout: z
+  requestTimeout: z.coerce
     .number()
     .int("Request timeout must be a whole number")
     .min(1000, "Request timeout must be at least 1000ms")
@@ -93,7 +93,8 @@ export default function ConnectionForm({
     message: "",
   });
 
-  const { saveConnection, updateConnectionById } = useConnectionStore();
+  const { saveConnection, updateConnectionById, activeConnectionId } = useConnectionStore();
+  const setCredential = useAppStore((s) => s.setCredential);
 
   const form = useForm<FormInput, unknown, FormData>({
     resolver: zodResolver(formSchema),
@@ -190,7 +191,22 @@ export default function ConnectionForm({
         });
 
         if (success) {
-          toast.success("Connection updated");
+          // Reconnect if the updated connection is currently active
+          if (activeConnectionId === connection.id) {
+            await setCredential({
+              url: data.url,
+              username: data.username,
+              password: data.password || "",
+              requestTimeout: data.requestTimeout,
+              useAdvanced: data.useAdvanced || false,
+              customPath: data.customPath || "",
+              isDistributed: data.isDistributed,
+              clusterName: data.clusterName,
+            });
+            toast.success("Connection updated and reconnected");
+          } else {
+            toast.success("Connection updated");
+          }
           onSuccess();
         }
       } else {

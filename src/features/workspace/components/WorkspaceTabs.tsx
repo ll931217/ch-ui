@@ -279,12 +279,12 @@ function WorkspaceTabs() {
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 min-h-0">
           {sortedTabs.map((tab) => (
             <TabsContent
               key={tab.id}
               value={tab.id}
-              className="h-full p-0 outline-none data-[state=active]:block"
+              className="h-full m-0 p-0 outline-none data-[state=active]:block"
             >
               {tab.type === "home" ? (
                 <HomeTab />

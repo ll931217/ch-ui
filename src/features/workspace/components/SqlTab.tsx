@@ -38,7 +38,6 @@ import {
 } from "@/lib/formatUtils";
 import { transposeGridData } from "@/lib/transposeGrid";
 import ValueSidebar from "./ValueSidebar";
-import { ResultsPagination } from "./ResultsPagination";
 
 // Component imports
 import SQLEditor from "@/features/workspace/editor/SqlEditor";
@@ -90,8 +89,14 @@ interface IRow {
  * query results, metadata, and statistics tabs on the bottom.
  */
 const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
-  const { getTabById, runQuery, runAllQueries, fetchDatabaseInfo, updateTab } =
-    useAppStore();
+  const {
+    getTabById,
+    runQuery,
+    runAllQueries,
+    cancelQuery,
+    fetchDatabaseInfo,
+    updateTab,
+  } = useAppStore();
   const tab = getTabById(tabId);
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("results");
@@ -143,6 +148,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     rowIndex: number;
     value: any;
   } | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const gridOptions = useMemo(
     () => createGridOptions(rowData.length),
@@ -414,6 +420,20 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     }
   }, [orientation]);
 
+  // Elapsed time counter for loading state
+  useEffect(() => {
+    if (!tab?.isLoading) {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [tab?.isLoading]);
+
   // Handle transpose data transformation
   useEffect(() => {
     if (
@@ -508,11 +528,26 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isEditorFocused, activeTab, isSidebarOpen, handleTransposeToggle]);
 
+  // Format elapsed seconds as mm:ss
+  const formatElapsedTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
   // UI rendering functions
   const renderLoading = () => (
-    <div className="h-full w-full flex items-center justify-center">
-      <Loader2 size={24} className="animate-spin mr-2" />
-      <p>Running query...</p>
+    <div className="h-full w-full flex flex-col items-center justify-center gap-3">
+      <div className="flex items-center">
+        <Loader2 size={24} className="animate-spin mr-2" />
+        <p>Running query...</p>
+      </div>
+      <p className="text-sm text-muted-foreground tabular-nums">
+        {formatElapsedTime(elapsedSeconds)}
+      </p>
+      <Button variant="outline" size="sm" onClick={() => cancelQuery(tabId)}>
+        Cancel
+      </Button>
     </div>
   );
 
@@ -563,7 +598,11 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
           <ContextMenu>
             <ContextMenuTrigger asChild>
               <div className="h-full relative">
-                <AgGridWrapper ref={gridRef} {...gridProps} />
+                <AgGridWrapper
+                  ref={gridRef}
+                  {...gridProps}
+                  statistics={tab?.result?.statistics ?? null}
+                />
               </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
@@ -578,10 +617,6 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
             </ContextMenuContent>
           </ContextMenu>
         </div>
-        <ResultsPagination
-          statistics={tab?.result?.statistics ?? null}
-          gridRef={gridRef}
-        />
       </div>
     );
 
@@ -787,7 +822,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
             )}
           </div>
         </TabsList>
-        <div className="flex-1">
+        <div className="flex-1 min-h-0">
           <TabsContent value="results" className="h-full m-0">
             {renderResultsTab()}
           </TabsContent>
@@ -834,7 +869,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
   if (!tab) return null;
 
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    groupId: "unique-layout-id",
+    groupId: "sql-tab-layout",
     storage: localStorage,
   });
 
@@ -848,10 +883,10 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
       >
         <ResizablePanel
           id="sql-editor"
-          defaultSize={orientation === "horizontal" ? 50 : 300}
-          minSize={orientation === "horizontal" ? 20 : 200}
+          defaultSize="50%"
+          minSize={200}
           collapsible
-          collapsedSize={0}
+          collapsedSize={30}
         >
           <SQLEditor
             tabId={tabId}
@@ -866,7 +901,7 @@ const SqlTab: React.FC<SqlTabProps> = ({ tabId }) => {
         />
         <ResizablePanel
           id="sql-results"
-          minSize={100}
+          minSize={200}
           collapsible
           collapsedSize={0}
         >

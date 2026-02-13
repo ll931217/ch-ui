@@ -21,6 +21,7 @@ import { useTheme } from "@/components/common/theme-provider";
 import DownloadDialog from "@/components/common/DownloadDialog";
 import EmptyQueryResult from "./EmptyQueryResult";
 import StatisticsDisplay from "./StatisticsDisplay";
+import { ExplainTab } from "@/features/workspace/explain/components/ExplainTab";
 import { MultiQueryResult } from "@/types/common";
 
 interface MultiResultTabsProps {
@@ -288,6 +289,7 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
   const hasData = currentResult?.result?.data?.length > 0;
   const hasMeta = currentResult?.result?.meta?.length > 0;
   const hasError = !!currentResult?.result?.error;
+  const hasExplain = currentResult?.result?.explainResult !== undefined;
 
   return (
     <div className="h-full flex flex-col">
@@ -350,6 +352,14 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
             )}
           </TabsTrigger>
           <TabsTrigger value="statistics">Statistics</TabsTrigger>
+          {hasExplain && (
+            <TabsTrigger value="explain">
+              Explain
+              <span className="ml-2 text-muted-foreground">
+                ({currentResult.result.explainResult!.type})
+              </span>
+            </TabsTrigger>
+          )}
 
           <div className="ml-auto flex items-center">
             {hasData && !hasError && activeTab === "results" && (
@@ -370,6 +380,11 @@ const MultiResultTabs: React.FC<MultiResultTabsProps> = ({
           <TabsContent value="statistics" className="h-full m-0">
             {renderStatisticsTab()}
           </TabsContent>
+          {hasExplain && (
+            <TabsContent value="explain" className="h-full m-0">
+              <ExplainTab explainResult={currentResult.result.explainResult!} />
+            </TabsContent>
+          )}
         </div>
       </Tabs>
     </div>

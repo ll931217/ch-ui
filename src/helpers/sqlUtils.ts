@@ -1,3 +1,5 @@
+import type { ExplainType } from "@/types/common";
+
 export const isCreateOrInsert = (query: string) => {
   // Remove lines that start with '--'
   const cleanedQuery = query
@@ -124,28 +126,30 @@ export function isExplainQuery(query: string): boolean {
 }
 
 /**
- * Extracts the EXPLAIN type from a query
- * Returns: 'PIPELINE' | 'PLAN' | 'AST' | 'SYNTAX' | null
+ * Extracts the EXPLAIN type from a query.
+ * Multi-word types (TABLE OVERRIDE, QUERY TREE) are checked first
+ * to avoid partial matches.
  */
-export function getExplainType(query: string): 'PIPELINE' | 'PLAN' | 'AST' | 'SYNTAX' | null {
+export function getExplainType(query: string): ExplainType | null {
   const trimmed = query.trim().toUpperCase();
 
   if (!trimmed.startsWith('EXPLAIN')) {
     return null;
   }
 
-  // Match: EXPLAIN [TYPE] ...
-  if (trimmed.includes('EXPLAIN PIPELINE')) {
-    return 'PIPELINE';
-  } else if (trimmed.includes('EXPLAIN PLAN')) {
-    return 'PLAN';
-  } else if (trimmed.includes('EXPLAIN AST')) {
-    return 'AST';
-  } else if (trimmed.includes('EXPLAIN SYNTAX')) {
-    return 'SYNTAX';
-  }
+  // Multi-word types first to avoid partial matches
+  if (/^EXPLAIN\s+TABLE\s+OVERRIDE\b/.test(trimmed)) return 'TABLE OVERRIDE';
+  if (/^EXPLAIN\s+QUERY\s+TREE\b/.test(trimmed)) return 'QUERY TREE';
 
-  // Default to PLAN if just "EXPLAIN SELECT ..."
+  // Single-word types
+  if (/^EXPLAIN\s+PIPELINE\b/.test(trimmed)) return 'PIPELINE';
+  if (/^EXPLAIN\s+PLAN\b/.test(trimmed)) return 'PLAN';
+  if (/^EXPLAIN\s+AST\b/.test(trimmed)) return 'AST';
+  if (/^EXPLAIN\s+SYNTAX\b/.test(trimmed)) return 'SYNTAX';
+  if (/^EXPLAIN\s+ESTIMATE\b/.test(trimmed)) return 'ESTIMATE';
+  if (/^EXPLAIN\s+INDEXES\b/.test(trimmed)) return 'INDEXES';
+
+  // Default to PLAN if just "EXPLAIN SELECT ..." or "EXPLAIN json=1 ..."
   return 'PLAN';
 }
 
@@ -154,5 +158,5 @@ export function getExplainType(query: string): 'PIPELINE' | 'PLAN' | 'AST' | 'SY
  */
 export function isJsonExplain(query: string): boolean {
   const trimmed = query.trim().toLowerCase();
-  return /explain\s+\w+\s+json\s*=\s*1/i.test(trimmed);
+  return /explain\s+(?:\w+\s+)*json\s*=\s*1/i.test(trimmed);
 }

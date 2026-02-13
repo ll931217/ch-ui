@@ -27,6 +27,10 @@ import {
 
 const MAPPED_TABLE_TYPE: Record<string, string> = {"view": "view", "dictionary": "dictionary", "materializedview": "materialized_view"};
 
+// AbortControllers for in-flight queries, keyed by tabId.
+// Kept outside Zustand to avoid serialization issues.
+const queryAbortControllers = new Map<string, AbortController>();
+
 /**
  * Error class for ClickHouse related errors.
  * Provides error categories and troubleshooting tips.
@@ -370,7 +374,12 @@ const useAppStore = create<AppState>()(
           if (!clickHouseClient) {
             throw new Error("ClickHouse client is not initialized");
           }
+
+          // Set up abort controller for cancellation
+          const abortController = new AbortController();
           if (tabId) {
+            queryAbortControllers.get(tabId)?.abort();
+            queryAbortControllers.set(tabId, abortController);
             set((state) => ({
               tabs: state.tabs.map((tab) =>
                 tab.id === tabId
@@ -383,7 +392,10 @@ const useAppStore = create<AppState>()(
             const trimmedQuery = query.trim();
 
             if (isCreateOrInsert(trimmedQuery)) {
-              await clickHouseClient.command({ query: trimmedQuery });
+              await clickHouseClient.command({
+                query: trimmedQuery,
+                abort_signal: abortController.signal,
+              });
               const result: QueryResult = {
                 meta: [],
                 data: [],
@@ -402,6 +414,7 @@ const useAppStore = create<AppState>()(
 
             const result = await clickHouseClient.query({
               query: trimmedQuery,
+              abort_signal: abortController.signal,
             });
 
             let processedResult: QueryResult;
@@ -473,6 +486,7 @@ const useAppStore = create<AppState>()(
             return errorResult;
           } finally {
             if (tabId) {
+              queryAbortControllers.delete(tabId);
               set((state) => ({
                 tabs: state.tabs.map((tab) =>
                   tab.id === tabId ? { ...tab, isLoading: false } : tab
@@ -492,6 +506,11 @@ const useAppStore = create<AppState>()(
             throw new Error("ClickHouse client is not initialized");
           }
 
+          // Set up abort controller for cancellation
+          const abortController = new AbortController();
+          queryAbortControllers.get(tabId)?.abort();
+          queryAbortControllers.set(tabId, abortController);
+
           // Set loading state
           set((state) => ({
             tabs: state.tabs.map((tab) =>
@@ -504,6 +523,8 @@ const useAppStore = create<AppState>()(
           const results: MultiQueryResult[] = [];
 
           for (let i = 0; i < queries.length; i++) {
+            if (abortController.signal.aborted) break;
+
             const query = queries[i];
             try {
               const trimmedQuery = query.trim();
@@ -512,7 +533,10 @@ const useAppStore = create<AppState>()(
               let queryResult: QueryResult;
 
               if (isCreateOrInsert(trimmedQuery)) {
-                await clickHouseClient.command({ query: trimmedQuery });
+                await clickHouseClient.command({
+                  query: trimmedQuery,
+                  abort_signal: abortController.signal,
+                });
                 queryResult = {
                   meta: [],
                   data: [],
@@ -523,6 +547,7 @@ const useAppStore = create<AppState>()(
               } else if (isExplainQuery(trimmedQuery) && !isJsonExplain(trimmedQuery)) {
                 const result = await clickHouseClient.query({
                   query: trimmedQuery,
+                  abort_signal: abortController.signal,
                 });
                 const textResult = await result.text();
                 const rows = textResult
@@ -547,6 +572,7 @@ const useAppStore = create<AppState>()(
               } else {
                 const result = await clickHouseClient.query({
                   query: trimmedQuery,
+                  abort_signal: abortController.signal,
                 });
                 const jsonResult = (await result.json()) as any;
                 queryResult = {
@@ -560,6 +586,10 @@ const useAppStore = create<AppState>()(
                   rows: jsonResult.rows || 0,
                   error: null,
                 };
+
+                if (isExplainQuery(trimmedQuery)) {
+                  queryResult.explainResult = ExplainParser.parse(trimmedQuery, jsonResult);
+                }
               }
 
               results.push({
@@ -582,6 +612,8 @@ const useAppStore = create<AppState>()(
             }
           }
 
+          queryAbortControllers.delete(tabId);
+
           // Update tab with all results
           await updateTab(tabId, {
             results,
@@ -592,6 +624,19 @@ const useAppStore = create<AppState>()(
           });
 
           return results;
+        },
+
+        cancelQuery: (tabId: string) => {
+          const controller = queryAbortControllers.get(tabId);
+          if (controller) {
+            controller.abort();
+            queryAbortControllers.delete(tabId);
+          }
+          set((state) => ({
+            tabs: state.tabs.map((tab) =>
+              tab.id === tabId ? { ...tab, isLoading: false, error: null } : tab
+            ),
+          }));
         },
 
         /**

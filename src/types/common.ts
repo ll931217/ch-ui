@@ -60,8 +60,18 @@ export interface ExplainNode {
   rawData?: any;
 }
 
+export type ExplainType =
+  | 'PIPELINE'
+  | 'PLAN'
+  | 'AST'
+  | 'SYNTAX'
+  | 'ESTIMATE'
+  | 'TABLE OVERRIDE'
+  | 'INDEXES'
+  | 'QUERY TREE';
+
 export interface ExplainResult {
-  type: 'PIPELINE' | 'PLAN' | 'AST' | 'SYNTAX';
+  type: ExplainType;
   tree: ExplainNode;
   rawText: string;
   rawJson?: any;
@@ -152,6 +162,7 @@ export interface AppState
   checkServerStatus: () => Promise<void>;
   runQuery: (query: string, tabId?: string) => Promise<QueryResult>;
   runAllQueries: (queries: string[], tabId: string) => Promise<MultiQueryResult[]>;
+  cancelQuery: (tabId: string) => void;
   initializeApp: () => Promise<void>;
   setCredentialSource: (source: "env" | "app") => void;
   updateConfiguration: (clickhouseSettings: ClickHouseSettings) => void;

@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect, useRef } from "react";
+import React, { useMemo, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -6,11 +6,7 @@ import { Info, Link2 } from "lucide-react";
 import { GrantedPermission } from "./permissions";
 import { ExtendedGrantedPermission, RoleAssignment } from "./types";
 import PrivilegesPanel from "./PrivilegesPanel";
-import PresetToolbar from "./PresetToolbar";
-import { usePresetStore } from "./usePresetStore";
-import { useConnectionStore } from "@/store/connectionStore";
 
-// Stable empty array reference to avoid creating new array on each render
 const EMPTY_GRANTS: GrantedPermission[] = [];
 
 interface PrivilegesSectionProps {
@@ -33,41 +29,14 @@ const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
   assignedRoles,
   showRoleSource = false,
 }) => {
-  const activeConnectionId = useConnectionStore((state) => state.activeConnectionId);
-  const { getPresets, getDefaultPreset } = usePresetStore();
-  const hasAutoApplied = useRef(false);
-
-  // Memoize handler to avoid unnecessary re-renders
   const handleGrantsChange = useCallback((grants: GrantedPermission[]) => {
     form.setValue("privileges.grants", grants, { shouldDirty: true });
   }, [form]);
 
-  // Use stable reference for empty grants to avoid infinite loops
   const watchedGrants = form.watch("privileges.grants");
   const currentGrants = useMemo(() => {
     return watchedGrants && watchedGrants.length > 0 ? watchedGrants : EMPTY_GRANTS;
   }, [watchedGrants]);
-
-  // Auto-apply default preset on mount if no grants exist
-  useEffect(() => {
-    if (hasAutoApplied.current || !activeConnectionId) {
-      return;
-    }
-
-    // Only auto-apply if there are no grants yet
-    if (!currentGrants || currentGrants.length === 0) {
-      const defaultPresetId = getDefaultPreset(activeConnectionId);
-      if (defaultPresetId) {
-        const presets = getPresets(activeConnectionId);
-        const defaultPreset = presets.find((p) => p.id === defaultPresetId);
-
-        if (defaultPreset) {
-          handleGrantsChange(defaultPreset.grants);
-          hasAutoApplied.current = true;
-        }
-      }
-    }
-  }, [activeConnectionId, currentGrants, getDefaultPreset, getPresets, handleGrantsChange]);
 
   return (
     <Card>
@@ -76,7 +45,7 @@ const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-sm text-muted-foreground">
-          Select a preset or manually configure privileges. Privileges can be scoped to specific databases and tables.
+          Manually configure direct privileges, or assign roles in the Database and Roles section above.
         </div>
 
         {/* Role Info Banner */}
@@ -112,12 +81,6 @@ const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
             </AlertDescription>
           </Alert>
         )}
-
-        {/* Preset Toolbar */}
-        <PresetToolbar
-          grants={currentGrants}
-          onApplyPreset={handleGrantsChange}
-        />
 
         <PrivilegesPanel
           databases={databases}

@@ -45,7 +45,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -90,3 +90,4 @@ jobs:
           publish_dir: ./docs/.vitepress/dist
           user_name: ${{ secrets.GIT_USER_NAME }}
           user_email: ${{ secrets.GIT_USER_EMAIL }}
+

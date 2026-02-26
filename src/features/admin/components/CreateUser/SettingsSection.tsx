@@ -1,4 +1,3 @@
-// components/CreateNewUser/SettingsSection.tsx
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
@@ -34,12 +33,15 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <FormField
-          control={form.control}
+          form={form}
           name="settings.profile"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Settings Profile</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select
+                onValueChange={(v) => field.handleChange(v)}
+                value={field.state.value}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select settings profile" />
@@ -59,14 +61,14 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
         />
 
         <FormField
-          control={form.control}
+          form={form}
           name="settings.readonly"
           render={({ field }) => (
             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
               <FormControl>
                 <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
+                  checked={field.state.value}
+                  onCheckedChange={(checked) => field.handleChange(!!checked)}
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
@@ -80,12 +82,15 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
         />
 
         <FormField
-          control={form.control}
+          form={form}
           name="grantees"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Grantees</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select
+                onValueChange={(v) => field.handleChange(v)}
+                value={field.state.value}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select grantees" />
